@@ -14,7 +14,7 @@ const SHIPS = [
     { id: "stealth", name: "Stealth", price: 50, hull: "#546e7a", accent: "#263238", flame: "#ff5722" },
     { id: "candy", name: "Candy", price: 30, hull: "#f48fb1", accent: "#ec407a", flame: "#ff80ab" },
     { id: "plasma", name: "Plasma", price: 70, hull: "#00e5ff", accent: "#006064", flame: "#18ffff" },
-    { id: "ufo", name: "UFO 🛸", price: 200, hull: "#b388ff", accent: "#7c4dff", flame: "#00e5ff", shape: "ufo" },
+    { id: "ufo", name: "UFO 🛸 Rundumschuss", price: 500, hull: "#b388ff", accent: "#7c4dff", flame: "#00e5ff", shape: "ufo" },
 ];
 
 // Repeatable upgrades: each level costs more
@@ -459,7 +459,15 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 const cos = Math.cos(ship.angle), sin = Math.sin(ship.angle);
                 const bvx = cos * fx.bulletSpeed + ship.vx * 0.3;
                 const bvy = sin * fx.bulletSpeed + ship.vy * 0.3;
-                if (fx.doubleShot) {
+                if (skin.shape === "ufo") {
+                    // Spezialfähigkeit: Rundumschuss in alle Richtungen gleichzeitig
+                    const N = 8;
+                    for (let k = 0; k < N; k++) {
+                        const a = ship.angle + (k * 2 * Math.PI / N);
+                        const c = Math.cos(a), s = Math.sin(a);
+                        bullets.push({ x: ship.x + c*14, y: ship.y + s*14, vx: c*fx.bulletSpeed + ship.vx*0.3, vy: s*fx.bulletSpeed + ship.vy*0.3, life: 2, hue: (bulletHue + k*45) % 360 });
+                    }
+                } else if (fx.doubleShot) {
                     const ox = Math.cos(ship.angle + Math.PI/2) * 5, oy = Math.sin(ship.angle + Math.PI/2) * 5;
                     bullets.push({ x: ship.x+cos*14+ox, y: ship.y+sin*14+oy, vx: bvx, vy: bvy, life: 2, hue: bulletHue });
                     bullets.push({ x: ship.x+cos*14-ox, y: ship.y+sin*14-oy, vx: bvx, vy: bvy, life: 2, hue: bulletHue+30 });
