@@ -11,14 +11,34 @@
   body {
     margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: linear-gradient(135deg, #fff0f6 0%, #eef0ff 60%, #f3eaff 100%);
     color: #2b2b3a; padding: 20px; overflow-x: hidden;
+    /* Animierter blauer Himmel */
+    background: linear-gradient(180deg, #4aa6ff 0%, #8fcaff 45%, #d8efff 100%);
+    background-size: 100% 220%;
+    animation: sky 18s ease-in-out infinite alternate;
   }
+  @keyframes sky {
+    0%   { background-position: 0 0%; }
+    100% { background-position: 0 100%; }
+  }
+
+  /* ---- Wolken-Schicht (hinter den Ballons) ---- */
+  .sky { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .cloud {
+    position: absolute; background: radial-gradient(circle at 30% 50%, #ffffff, #ffffffcc 60%, transparent 72%);
+    border-radius: 50%; filter: blur(2px); opacity: .85; animation: drift linear infinite;
+  }
+  .cloud::before, .cloud::after {
+    content: ""; position: absolute; top: 22%; background: #fff; border-radius: 50%; filter: blur(2px);
+  }
+  .cloud::before { left: 18%; width: 55%; height: 75%; }
+  .cloud::after  { right: 14%; width: 45%; height: 60%; }
+  @keyframes drift { from { transform: translateX(-30vw); } to { transform: translateX(130vw); } }
 
   /* ---- Verschwommener Hintergrund mit aufsteigenden Luftballons ---- */
   .bg {
     position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
-    filter: blur(3px); opacity: .7;
+    filter: blur(3px); opacity: .8;
   }
   .balloon {
     position: absolute; bottom: -160px; width: 56px; height: 70px; border-radius: 50% 50% 48% 48%;
@@ -64,10 +84,11 @@
   button.primary:active { transform: scale(.97); }
   button.primary:disabled { opacity: .6; cursor: default; }
   /* Aufleuchten beim Drücken */
-  button.glow { animation: glow .7s ease; }
+  button.glow { animation: glow 1s ease; }
   @keyframes glow {
-    0%   { box-shadow: 0 0 0 0 rgba(255,93,162,.7), 0 0 0 0 rgba(124,92,255,.7); filter: brightness(1.6); }
-    60%  { box-shadow: 0 0 28px 10px rgba(255,93,162,.55), 0 0 50px 18px rgba(124,92,255,.45); filter: brightness(1.25); }
+    0%   { box-shadow: 0 0 0 0 rgba(255,93,162,.9), 0 0 0 0 rgba(124,92,255,.9); filter: brightness(2) saturate(1.4); }
+    30%  { box-shadow: 0 0 40px 16px rgba(255,255,255,.9), 0 0 80px 30px rgba(255,93,162,.7); filter: brightness(1.8) saturate(1.4); }
+    70%  { box-shadow: 0 0 30px 12px rgba(124,92,255,.6), 0 0 60px 24px rgba(255,93,162,.45); filter: brightness(1.3); }
     100% { box-shadow: 0 6px 18px rgba(124,92,255,.35); filter: brightness(1); }
   }
 
@@ -120,6 +141,7 @@
 </style>
 </head>
 <body>
+  <div class="sky" id="sky"></div>
   <div class="bg" id="bg"></div>
 
   <div class="card">
@@ -150,8 +172,18 @@
         <div class="game-tile" data-game="memory">
           <div class="ico">🃏</div><div class="t">Memory</div><div class="d">Finde alle Paare</div>
         </div>
+        <div class="game-tile" data-game="tennis">
+          <div class="ico">🏓</div><div class="t">Tennis gegen KI</div><div class="d">Erster mit 5 Punkten gewinnt</div>
+        </div>
+        <div class="game-tile" data-game="fly">
+          <div class="ico">🚁</div><div class="t">Fliegen</div><div class="d">Tippen & Hindernissen ausweichen</div>
+        </div>
       </div>
       <div class="actions"><button class="ghost" id="backToInv">← Zur Einladung</button></div>
+      <div style="margin-top:18px">
+        <a href="https://diamondjonny.github.io/geburtstagseinladung/" target="_blank" rel="noopener"
+           style="font-size:13px;color:#9a9ab0;text-decoration:none">🚀 …und das große Spiel (App)</a>
+      </div>
     </div>
 
     <!-- Einzelnes Spiel -->
@@ -163,6 +195,25 @@
 
 <script src="data.js"></script>
 <script>
+/* =================== Wolken =================== */
+(function () {
+  const sky = document.getElementById('sky');
+  const C = 6;
+  for (let i = 0; i < C; i++) {
+    const c = document.createElement('div');
+    c.className = 'cloud';
+    const w = 90 + (i % 4) * 60;          // 90–270px
+    c.style.width = w + 'px';
+    c.style.height = (w * 0.45) + 'px';
+    c.style.top = (4 + (i * 15) % 70) + '%';
+    const dur = 38 + (i % 5) * 12;        // 38–86s
+    c.style.animationDuration = dur + 's';
+    c.style.animationDelay = '-' + ((i * 9) % dur) + 's';
+    c.style.opacity = (0.6 + (i % 3) * 0.12).toFixed(2);
+    sky.appendChild(c);
+  }
+})();
+
 /* =================== Hintergrund-Ballons =================== */
 (function () {
   const bg = document.getElementById('bg');
@@ -288,15 +339,21 @@
   });
 
   /* =================== Spiele =================== */
-  $('backToInv').addEventListener('click', () => show('result'));
-  $('backToHub').addEventListener('click', () => { stopPop(); show('gamesHub'); });
+  let cleanup = null;                 // Aufräum-Funktion des aktuell laufenden Spiels
+  function stopGame() { if (cleanup) { try { cleanup(); } catch (e) {} cleanup = null; } }
+
+  $('backToInv').addEventListener('click', () => { stopGame(); show('result'); });
+  $('backToHub').addEventListener('click', () => { stopGame(); show('gamesHub'); });
   document.querySelectorAll('.game-tile').forEach((t) =>
     t.addEventListener('click', () => openGame(t.dataset.game)));
 
   function openGame(which) {
+    stopGame();
     show('gameView');
     if (which === 'pop') startPop();
     else if (which === 'memory') startMemory();
+    else if (which === 'tennis') startTennis();
+    else if (which === 'fly') startFly();
   }
 
   /* --- Luftballons platzen --- */
@@ -307,6 +364,7 @@
   }
   function startPop() {
     stopPop();
+    cleanup = stopPop;
     let score = 0, time = 30;
     const colors = ['#ff5da2','#7c5cff','#ffb04d','#48c6ff','#5be3a0','#ff7b7b'];
     $('gameInner').innerHTML =
@@ -393,6 +451,132 @@
       });
       grid.appendChild(c);
     });
+  }
+
+  /* --- Tennis gegen KI (Pong) --- */
+  function startTennis() {
+    $('gameInner').innerHTML =
+      '<h2>🏓 Tennis gegen KI</h2>' +
+      '<p class="lead" style="margin:0 0 8px">Schläger mit Maus/Finger bewegen. Erster mit 5 Punkten gewinnt.</p>' +
+      '<canvas id="cv" width="600" height="360" style="width:100%;border-radius:14px;background:#0e1230;display:block"></canvas>';
+    const cv = $('cv'), ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    const ph = 70, pw = 10;
+    let py = H / 2 - ph / 2, ay = py;          // player / ai paddle y
+    let bx = W / 2, by = H / 2, bvx = 4, bvy = 2.4;
+    let ps = 0, as = 0, over = false, raf = 0;
+
+    function pointer(clientY) {
+      const r = cv.getBoundingClientRect();
+      const y = (clientY - r.top) * (H / r.height);
+      py = Math.max(0, Math.min(H - ph, y - ph / 2));
+    }
+    const onMove = (e) => pointer(e.clientY);
+    const onTouch = (e) => { if (e.touches[0]) { pointer(e.touches[0].clientY); e.preventDefault(); } };
+    cv.addEventListener('mousemove', onMove);
+    cv.addEventListener('touchmove', onTouch, { passive: false });
+
+    function reset(dir) { bx = W / 2; by = H / 2; bvx = 4 * dir; bvy = (Math.random() * 4 - 2) || 2; }
+    function loop() {
+      // KI bewegt sich gemächlich Richtung Ball
+      const target = by - ph / 2;
+      ay += Math.max(-4.2, Math.min(4.2, target - ay)) * 0.55;
+      ay = Math.max(0, Math.min(H - ph, ay));
+
+      bx += bvx; by += bvy;
+      if (by < 6 || by > H - 6) bvy = -bvy;
+      // Spieler-Schläger links
+      if (bx < 20 + pw && by > py && by < py + ph && bvx < 0) { bvx = -bvx * 1.05; bvy += (by - (py + ph / 2)) * 0.05; }
+      // KI-Schläger rechts
+      if (bx > W - 20 - pw && by > ay && by < ay + ph && bvx > 0) { bvx = -bvx * 1.05; bvy += (by - (ay + ph / 2)) * 0.05; }
+      if (bx < 0) { as++; reset(1); }
+      if (bx > W) { ps++; reset(-1); }
+
+      ctx.fillStyle = '#0e1230'; ctx.fillRect(0, 0, W, H);
+      ctx.setLineDash([8, 12]); ctx.strokeStyle = '#39407a'; ctx.beginPath();
+      ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#ff5da2'; ctx.fillRect(14, py, pw, ph);
+      ctx.fillStyle = '#7c5cff'; ctx.fillRect(W - 14 - pw, ay, pw, ph);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 7, 0, 7); ctx.fill();
+      ctx.font = 'bold 30px system-ui'; ctx.fillStyle = '#cfd3ff'; ctx.textAlign = 'center';
+      ctx.fillText(ps, W / 2 - 40, 40); ctx.fillText(as, W / 2 + 40, 40);
+
+      if (ps >= 5 || as >= 5) {
+        over = true;
+        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 30px system-ui';
+        ctx.fillText(ps > as ? '🏆 Du gewinnst!' : '🤖 KI gewinnt!', W / 2, H / 2);
+        $('gameInner').insertAdjacentHTML('beforeend',
+          '<div class="center" style="margin-top:12px"><button class="primary" id="tAgain">Nochmal 🔁</button></div>');
+        $('tAgain').addEventListener('click', startTennis);
+        return;
+      }
+      raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+    cleanup = () => {
+      cancelAnimationFrame(raf);
+      cv.removeEventListener('mousemove', onMove);
+      cv.removeEventListener('touchmove', onTouch);
+    };
+  }
+
+  /* --- Fliegen (tippen, Hindernissen ausweichen) --- */
+  function startFly() {
+    $('gameInner').innerHTML =
+      '<h2>🚁 Fliegen</h2>' +
+      '<p class="lead" style="margin:0 0 8px">Tippen/Klicken lässt dich steigen. Weiche den Säulen aus!</p>' +
+      '<canvas id="fcv" width="600" height="360" style="width:100%;border-radius:14px;background:linear-gradient(#bfe6ff,#eaf6ff);display:block;cursor:pointer"></canvas>';
+    const cv = $('fcv'), ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
+    let y = H / 2, v = 0, raf = 0, score = 0, dead = false;
+    const gap = 120, pw = 56;
+    let pipes = [{ x: W + 40, h: 90 }, { x: W + 40 + (W / 2 + 40), h: 150 }];
+
+    const flap = () => { if (!dead) v = -5.4; };
+    const onDown = (e) => { flap(); e.preventDefault(); };
+    cv.addEventListener('mousedown', onDown);
+    cv.addEventListener('touchstart', onDown, { passive: false });
+
+    function loop() {
+      v += 0.32; y += v;
+      pipes.forEach((p) => {
+        p.x -= 2.6;
+        if (p.x < -pw) { p.x = W + 40; p.h = 60 + Math.random() * (H - gap - 120); score++; }
+      });
+      // Kollision
+      const bx = 90, br = 12;
+      if (y < br || y > H - br) dead = true;
+      pipes.forEach((p) => {
+        if (bx + br > p.x && bx - br < p.x + pw && (y - br < p.h || y + br > p.h + gap)) dead = true;
+      });
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#bfe6ff'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#5be3a0';
+      pipes.forEach((p) => { ctx.fillRect(p.x, 0, pw, p.h); ctx.fillRect(p.x, p.h + gap, pw, H - p.h - gap); });
+      ctx.font = '26px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText('🚁', bx, y + 9);
+      ctx.fillStyle = '#1b2a4a'; ctx.font = 'bold 26px system-ui';
+      ctx.fillText(score, W / 2, 40);
+
+      if (dead) {
+        ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 28px system-ui';
+        ctx.fillText('💥 Punkte: ' + score, W / 2, H / 2);
+        $('gameInner').insertAdjacentHTML('beforeend',
+          '<div class="center" style="margin-top:12px"><button class="primary" id="fAgain">Nochmal 🔁</button></div>');
+        $('fAgain').addEventListener('click', startFly);
+        return;
+      }
+      raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+    cleanup = () => {
+      cancelAnimationFrame(raf);
+      cv.removeEventListener('mousedown', onDown);
+      cv.removeEventListener('touchstart', onDown);
+    };
   }
 })();
 </script>
