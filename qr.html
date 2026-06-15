@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QR-Code · Geburtstagseinladung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #ff4f9a; --accent2: #7c5cff; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+    font-family: 'Nunito', system-ui, sans-serif; color: #2b2b3a;
+    background: linear-gradient(135deg, #fff0f6, #eef0ff 60%, #f3eaff);
+  }
+  .card {
+    background: #fff; border-radius: 28px; padding: 34px 30px; max-width: 460px; width: 100%; text-align: center;
+    box-shadow: 0 24px 70px rgba(124,92,255,.28);
+  }
+  h1 { font-family: 'Fredoka', sans-serif; font-size: 26px; margin: 0 0 4px; }
+  p.sub { color: #6b6b80; margin: 0 0 20px; }
+  .qr { width: 100%; max-width: 360px; height: auto; display: block; margin: 0 auto; }
+  .url { margin-top: 16px; font-size: 14px; color: #7a7a90; word-break: break-all; }
+  .btns { margin-top: 18px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  a.btn {
+    font-family: 'Fredoka', sans-serif; text-decoration: none; font-weight: 600; font-size: 15px;
+    padding: 10px 16px; border-radius: 12px; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 6px 18px rgba(124,92,255,.35);
+  }
+  a.btn.ghost { background: #fff; color: var(--accent2); border: 2px solid var(--accent2); box-shadow: none; }
+  @media print {
+    body { background: #fff; }
+    .card { box-shadow: none; }
+    .btns { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎉 Scan mich!</h1>
+    <p class="sub">QR-Code für die Geburtstagseinladung</p>
+    <img class="qr" src="qr.svg" alt="QR-Code zur Geburtstagseinladung" />
+    <div class="url">diamondjonny.github.io/einladung/</div>
+    <div class="btns">
+      <a class="btn" href="qr.svg" download>SVG laden</a>
+      <a class="btn ghost" href="qr.png" download>PNG laden</a>
+    </div>
+  </div>
+</body>
+</html>
