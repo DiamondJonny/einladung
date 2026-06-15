@@ -139,6 +139,19 @@
   .mcard.done { opacity: .55; cursor: default; }
   .center { text-align:center; }
 
+  /* Empfehlungen für andere Seiten */
+  .recommend { margin-top: 22px; border-top: 1px dashed #e1e1ef; padding-top: 16px; }
+  .rec-title { font-weight: 800; color: #6b6b80; font-size: 14px; margin-bottom: 10px; }
+  .rec-card {
+    display: flex; align-items: center; gap: 12px; text-align: left; text-decoration: none;
+    border: 2px solid #ece9ff; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
+    color: #2b2b3a; transition: transform .1s, border-color .15s, box-shadow .2s; background: #fbfaff;
+  }
+  .rec-card:hover { transform: translateY(-2px); border-color: var(--accent2); box-shadow: 0 8px 22px rgba(124,92,255,.16); }
+  .rec-ico { font-size: 28px; }
+  .rec-name { display: block; font-weight: 800; }
+  .rec-desc { display: block; font-size: 13px; color: #7a7a90; }
+
   /* Schwierigkeits-Auswahl */
   .diffbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; margin:6px 0 4px; font-weight:700; font-size:14px; color:#6b6b80; }
   .diffbtn {
@@ -189,9 +202,16 @@
         </div>
       </div>
       <div class="actions"><button class="ghost" id="backToInv">← Zur Einladung</button></div>
-      <div style="margin-top:18px">
-        <a href="https://diamondjonny.github.io/geburtstagseinladung/" target="_blank" rel="noopener"
-           style="font-size:13px;color:#9a9ab0;text-decoration:none">🚀 …und das große Spiel (App)</a>
+      <div class="recommend">
+        <div class="rec-title">✨ Schau dir auch meine anderen Seiten an</div>
+        <a class="rec-card" href="https://bartfastiel.github.io/vocabulary-learning-app/" target="_blank" rel="noopener">
+          <span class="rec-ico">📚</span>
+          <span><span class="rec-name">Vokabeln lernen</span><span class="rec-desc">Meine Vokabel-Lern-App</span></span>
+        </a>
+        <a class="rec-card" href="https://diamondjonny.github.io/geburtstagseinladung/" target="_blank" rel="noopener">
+          <span class="rec-ico">🚀</span>
+          <span><span class="rec-name">Das große Spiel</span><span class="rec-desc">3D-Geburtstagseinladung mit Spiel</span></span>
+        </a>
       </div>
     </div>
 
