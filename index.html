@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Geburtstagseinladung</title>
+<style>
+  :root { --accent: #ff5da2; --accent2: #7c5cff; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #fff0f6 0%, #f0f0ff 100%);
+    color: #2b2b3a; padding: 20px;
+  }
+  .card {
+    background: #fff; border-radius: 24px; padding: 36px 28px; max-width: 560px; width: 100%;
+    box-shadow: 0 20px 60px rgba(124, 92, 255, 0.18); text-align: center;
+  }
+  .emoji { font-size: 56px; line-height: 1; margin-bottom: 8px; }
+  h2 { margin: 0 0 6px; font-size: 24px; }
+  p.lead { color: #6b6b80; margin: 0 0 24px; }
+  form { display: flex; flex-direction: column; gap: 14px; }
+  input[type=text] {
+    padding: 16px 18px; font-size: 18px; border: 2px solid #e4e4f0; border-radius: 14px; outline: none;
+    transition: border-color .15s; text-align: center;
+  }
+  input[type=text]:focus { border-color: var(--accent2); }
+  button {
+    padding: 16px 18px; font-size: 18px; font-weight: 600; color: #fff; border: 0; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); cursor: pointer; transition: transform .08s, filter .15s;
+  }
+  button:hover { filter: brightness(1.05); }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .6; cursor: default; }
+  .msg { margin-top: 16px; min-height: 24px; font-weight: 600; }
+  .msg.err { color: #d8345f; }
+  .invitation { text-align: left; animation: fade .5s ease; }
+  .invitation h1 { text-align: center; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div id="gate">
+      <div class="emoji">🎂</div>
+      <h2>Geburtstagseinladung</h2>
+      <p class="lead">Gib deinen <strong>Vornamen</strong> ein, um deine Einladung zu sehen.</p>
+      <form id="form" autocomplete="off">
+        <input id="name" type="text" placeholder="Dein Vorname" autocapitalize="off" autocorrect="off" spellcheck="false" />
+        <button id="submit" type="submit">Einladung öffnen 🎉</button>
+      </form>
+      <div id="msg" class="msg"></div>
+    </div>
+    <div id="result" class="invitation" style="display:none"></div>
+  </div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  const data = window.INVITE_DATA;
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  const $ = (id) => document.getElementById(id);
+
+  function normalize(s) {
+    return s.toLowerCase().trim()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  }
+  function b64ToBytes(s) {
+    const bin = atob(s);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  // Levenshtein-Distanz (erlaubt kleine Tippfehler)
+  function lev(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n; if (!n) return m;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+      let cur = [i];
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+
+  async function deriveKEK(name, salt) {
+    const material = await crypto.subtle.importKey('raw', enc.encode(name), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: data.iter, hash: 'SHA-256' },
+      material, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
+    );
+  }
+
+  // Kandidatennamen (normalisiert) aus den Eintraegen lesen
+  const candidates = data.entries.map((e) => ({ name: dec.decode(b64ToBytes(e.n)), entry: e }));
+
+  function findMatch(input) {
+    let best = null;
+    for (const c of candidates) {
+      const d = lev(input, c.name);
+      const threshold = c.name.length <= 4 ? 1 : 2;
+      if (d <= threshold && (!best || d < best.d)) best = { c, d };
+    }
+    return best ? best.c : null;
+  }
+
+  async function reveal(match) {
+    const salt = b64ToBytes(data.salt);
+    const kek = await deriveKEK(match.name, salt);
+    const masterRaw = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: b64ToBytes(match.entry.iv) }, kek, b64ToBytes(match.entry.ct)
+    );
+    const masterKey = await crypto.subtle.importKey('raw', masterRaw, { name: 'AES-GCM' }, false, ['decrypt']);
+    const invBytes = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: b64ToBytes(data.inv.iv) }, masterKey, b64ToBytes(data.inv.ct)
+    );
+    return dec.decode(invBytes);
+  }
+
+  $('form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const raw = $('name').value;
+    const input = normalize(raw);
+    const msg = $('msg');
+    msg.className = 'msg';
+    msg.textContent = '';
+    if (!input) { msg.className = 'msg err'; msg.textContent = 'Bitte gib deinen Vornamen ein.'; return; }
+
+    $('submit').disabled = true;
+    msg.textContent = 'Einen Moment …';
+    const match = findMatch(input);
+    if (!match) {
+      msg.className = 'msg err';
+      msg.textContent = 'Diesen Namen finde ich leider nicht auf der Gästeliste. 🤔';
+      $('submit').disabled = false;
+      return;
+    }
+    try {
+      const html = await reveal(match);
+      $('gate').style.display = 'none';
+      const r = $('result');
+      r.innerHTML = html;
+      r.style.display = 'block';
+    } catch (e) {
+      msg.className = 'msg err';
+      msg.textContent = 'Hoppla, da ist etwas schiefgelaufen.';
+      $('submit').disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
