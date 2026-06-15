@@ -157,6 +157,15 @@
   .space-btn.close { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
   .space-el { flex: 1 1 auto; min-height: 0; width: 100%; }
 
+  /* Zurück-zur-Einladung-Knopf über der Spiele-Lobby */
+  #lobbyBackToInvite {
+    position: fixed; left: 10px; top: 10px; z-index: 2000;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff;
+    border: 0; border-radius: 12px; padding: 10px 16px; font-weight: 800; font-size: 14px; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  }
+  #lobbyBackToInvite:active { transform: scale(.97); }
+
   /* Empfehlungen für andere Seiten */
   .recommend { margin-top: 22px; border-top: 1px dashed #e1e1ef; padding-top: 16px; }
   .rec-title { font-weight: 800; color: #6b6b80; font-size: 14px; margin-bottom: 10px; }
@@ -462,11 +471,20 @@
     document.body.appendChild(el);
     document.body.style.overflow = 'hidden';
 
+    // Immer sichtbarer Knopf zurück zur Geburtstagseinladung (auch während eines Spiels)
+    const backBtn = document.createElement('button');
+    backBtn.id = 'lobbyBackToInvite';
+    backBtn.textContent = '← Einladung';
+    document.body.appendChild(backBtn);
+
     const finish = () => {
       document.body.style.overflow = '';
       if (el.isConnected) el.remove();
+      if (backBtn.isConnected) backBtn.remove();
       cleanup = null;
+      show('gamesHub');
     };
+    backBtn.addEventListener('click', finish);
     customElements.whenDefined('game-lobby').then(() => {
       if (el.open) el.open();
       const cb = el.shadowRoot && el.shadowRoot.querySelector('.close-lobby-btn');
