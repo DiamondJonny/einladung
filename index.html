@@ -219,7 +219,7 @@
           <div class="ico">🚁</div><div class="t">Fliegen</div><div class="d">Tippen & Hindernissen ausweichen</div>
         </div>
         <div class="game-tile" data-game="space" style="grid-column:1/-1;border-color:#7c5cff;background:#f3efff">
-          <div class="ico">☄️🛸</div><div class="t">Weltraum Pilot</div><div class="d">Eigene Rakete designen, Shop, Upgrades & UFO kaufen!</div>
+          <div class="ico">🎮☄️</div><div class="t">Alle Spiele (24+)</div><div class="d">Weltraum Pilot mit UFO, plus Tetris, Snake, Pacman, Vokabel-Quiz & viele mehr – alles gratis!</div>
         </div>
       </div>
       <div class="actions"><button class="ghost" id="backToInv">← Zur Einladung</button></div>
@@ -244,7 +244,7 @@
   </div>
 
 <script src="data.js"></script>
-<script src="asteroids-game.js"></script>
+<script type="module" src="game/game-lobby.js"></script>
 <script>
 /* =================== Wolken =================== */
 (function () {
@@ -352,6 +352,24 @@
     $(id).style.display = 'block';
   }
 
+  // ---- Spiele-Konto: automatischer Schüler-Account, Münzen = "points" ----
+  const einladungPM = {
+    get points() { return parseInt(localStorage.getItem('points') || '0'); },
+    updatePoints(d) { localStorage.setItem('points', String(Math.max(0, this.points + (d || 0)))); }
+  };
+  function ensureStudentAccount() {
+    localStorage.setItem('userRole', 'student');
+    if (!localStorage.getItem('playerName')) {
+      const a = ['Komet','Rakete','Stern','Nova','Pixel','Turbo','Galaxis','Astro','Blitz','Mond'];
+      localStorage.setItem('playerName', a[Math.floor(Math.random() * a.length)] + '-' + Math.floor(100 + Math.random() * 900));
+    }
+  }
+  function grantInviteBonusOnce() {
+    if (localStorage.getItem('inviteBonusGranted') === '1') return;
+    einladungPM.updatePoints(120);
+    localStorage.setItem('inviteBonusGranted', '1');
+  }
+
   // Einladung -> Knopf zu den Spielen
   function renderInvitation(html) {
     $('result').innerHTML = html +
@@ -374,14 +392,23 @@
     submitBtn.disabled = true;
     msg.textContent = 'Einen Moment …';
     const match = findMatch(input);
+    ensureStudentAccount();
     if (!match) {
-      msg.className = 'msg err';
-      msg.textContent = 'Diesen Namen finde ich leider nicht auf der Gästeliste. 🤔';
+      // Nicht auf der Gästeliste: kein Bonus, aber Spielen & Stöbern ist trotzdem erlaubt.
+      $('result').innerHTML =
+        '<div class="emoji">🎈</div>' +
+        '<h2>Du bist nicht auf der Gästeliste</h2>' +
+        '<p class="lead">Diesen Namen finde ich leider nicht – deshalb gibt es <strong>keinen Münz-Bonus</strong>. ' +
+        'Spielen und meine anderen Seiten anschauen darfst du aber natürlich trotzdem! 🎮</p>' +
+        '<div class="actions"><button class="primary" id="toGames">Zu den Spielen 🎮</button></div>';
+      show('result');
+      $('toGames').addEventListener('click', () => show('gamesHub'));
       submitBtn.disabled = false;
       return;
     }
     try {
       const html = await reveal(match);
+      grantInviteBonusOnce();   // nur für Eingeladene
       renderInvitation(html);
     } catch (e) {
       msg.className = 'msg err'; msg.textContent = 'Hoppla, da ist etwas schiefgelaufen.';
@@ -425,35 +452,27 @@
     else if (which === 'space') startSpace();
   }
 
-  /* --- Weltraum Pilot (Asteroids mit Shop, Raketen-Designer & UFO) --- */
+  /* --- Alle Spiele: komplette Lobby des Vokabeltrainers (gratis) --- */
   function startSpace() {
-    const ov = document.createElement('div');
-    ov.id = 'spaceOverlay';
-    ov.innerHTML =
-      '<div class="space-bar">' +
-        '<span class="space-bonus">🎁 Eingeladene starten mit <strong>120 Gratis-Münzen</strong>!</span>' +
-        '<span class="space-actions">' +
-          '<button class="space-btn" id="spaceFull">⛶ Vollbild</button>' +
-          '<button class="space-btn close" id="spaceClose">✕ Schließen</button>' +
-        '</span>' +
-      '</div>';
-    const el = document.createElement('asteroids-game');
-    el.className = 'space-el';
-    ov.appendChild(el);
-    document.body.appendChild(ov);
+    ensureStudentAccount();
+    // Die Lobby macht sich selbst zum Vollbild-Overlay mit eigenem ✕-Schließen-Knopf.
+    show('gamesHub'); // liegt darunter, erscheint nach dem Schließen wieder
+    const el = document.createElement('game-lobby');
+    el.pointsManager = einladungPM;
+    document.body.appendChild(el);
     document.body.style.overflow = 'hidden';
 
-    $('spaceClose').addEventListener('click', () => { stopGame(); show('gamesHub'); });
-    $('spaceFull').addEventListener('click', () => {
-      if (document.fullscreenElement) { document.exitFullscreen && document.exitFullscreen(); }
-      else if (ov.requestFullscreen) { ov.requestFullscreen().catch(() => {}); }
-    });
-
-    cleanup = () => {
-      if (document.fullscreenElement) { document.exitFullscreen && document.exitFullscreen(); }
+    const finish = () => {
       document.body.style.overflow = '';
-      ov.remove();
+      if (el.isConnected) el.remove();
+      cleanup = null;
     };
+    customElements.whenDefined('game-lobby').then(() => {
+      if (el.open) el.open();
+      const cb = el.shadowRoot && el.shadowRoot.querySelector('.close-lobby-btn');
+      if (cb) cb.addEventListener('click', finish);
+    });
+    cleanup = finish;
   }
 
   /* --- Luftballons platzen --- */

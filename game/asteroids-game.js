@@ -34,22 +34,14 @@ const UPGRADE_DEFS = [
 ];
 
 const SHOP_KEY = "asteroidsShop";
-const COIN_KEY = "asteroidCoins";
+// Waehrung = gemeinsame Konto-Punkte ("points"). Der Einladungs-Bonus wird beim
+// korrekten Namen vergeben (in index.html), nicht hier automatisch.
+const COIN_KEY = "points";
 function loadShop() { try { return JSON.parse(localStorage.getItem(SHOP_KEY) || "null"); } catch { return null; } }
 function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null }; }
 function saveShop(d) { localStorage.setItem(SHOP_KEY, JSON.stringify(d)); }
 function getCoins() { return parseInt(localStorage.getItem(COIN_KEY) || "0"); }
 function setCoins(n) { localStorage.setItem(COIN_KEY, String(n)); }
-
-// Einladungs-Startbonus: einmalig 120 Münzen für Eingeladene gutschreiben.
-const INVITE_BONUS = 120;
-const BONUS_KEY = "inviteBonusGranted";
-function grantInviteBonus() {
-    if (localStorage.getItem(BONUS_KEY)) return;
-    setCoins(getCoins() + INVITE_BONUS);
-    localStorage.setItem(BONUS_KEY, "1");
-}
-grantInviteBonus();
 
 function getUpgradePrice(def, level) {
     if (def.maxLevel && level >= def.maxLevel) return Infinity;
