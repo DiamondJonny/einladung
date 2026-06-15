@@ -3,15 +3,23 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Geburtstagseinladung</title>
+<title>🎉 Geburtstagseinladung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --accent: #ff5da2; --accent2: #7c5cff; }
+  :root {
+    --accent: #ff4f9a; --accent2: #7c5cff; --accent3: #ffb23e;
+    --ink: #2b2b3a; --muted: #6b6b80;
+    --font-head: 'Fredoka', system-ui, sans-serif;
+    --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
     margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: #2b2b3a; padding: 20px; overflow-x: hidden;
+    font-family: var(--font-body);
+    color: var(--ink); padding: 20px; overflow-x: hidden;
     /* Animierter blauer Himmel */
     background: linear-gradient(180deg, #4aa6ff 0%, #8fcaff 45%, #d8efff 100%);
     background-size: 100% 220%;
@@ -59,14 +67,20 @@
   }
 
   .card {
-    position: relative; z-index: 1;
-    background: rgba(255,255,255,.92); backdrop-filter: blur(2px);
-    border-radius: 24px; padding: 36px 28px; max-width: 620px; width: 100%;
-    box-shadow: 0 20px 60px rgba(124, 92, 255, 0.22); text-align: center;
+    position: relative; z-index: 1; overflow: hidden;
+    background: rgba(255,255,255,.95); backdrop-filter: blur(3px);
+    border-radius: 28px; padding: 40px 30px 34px; max-width: 620px; width: 100%;
+    box-shadow: 0 24px 70px rgba(124, 92, 255, 0.28); text-align: center;
   }
-  .emoji { font-size: 56px; line-height: 1; margin-bottom: 8px; }
-  h2 { margin: 0 0 6px; font-size: 24px; }
-  p.lead { color: #6b6b80; margin: 0 0 24px; }
+  /* bunter Konfetti-Streifen oben auf der Karte */
+  .card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 7px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3), #5be3a0, #48c6ff, var(--accent2), var(--accent));
+  }
+  .emoji { font-size: 60px; line-height: 1; margin-bottom: 10px; animation: pop-in .5s ease; }
+  @keyframes pop-in { 0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+  h2 { font-family: var(--font-head); margin: 0 0 6px; font-size: 27px; font-weight: 700; letter-spacing: .2px; }
+  p.lead { color: var(--muted); margin: 0 0 24px; font-size: 16px; }
   form { display: flex; flex-direction: column; gap: 14px; }
   input[type=text] {
     padding: 16px 18px; font-size: 18px; border: 2px solid #e4e4f0; border-radius: 14px; outline: none;
@@ -75,10 +89,11 @@
   input[type=text]:focus { border-color: var(--accent2); }
 
   button.primary {
-    position: relative; padding: 16px 18px; font-size: 18px; font-weight: 700; color: #fff; border: 0;
-    border-radius: 14px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    position: relative; padding: 16px 20px; font-family: var(--font-head); font-size: 19px; font-weight: 600;
+    letter-spacing: .3px; color: #fff; border: 0;
+    border-radius: 16px; background: linear-gradient(135deg, var(--accent), var(--accent2));
     cursor: pointer; transition: transform .08s, filter .15s, box-shadow .2s;
-    box-shadow: 0 6px 18px rgba(124,92,255,.35);
+    box-shadow: 0 8px 22px rgba(124,92,255,.4);
   }
   button.primary:hover { filter: brightness(1.06); }
   button.primary:active { transform: scale(.97); }
@@ -95,13 +110,32 @@
   .msg { margin-top: 16px; min-height: 24px; font-weight: 600; }
   .msg.err { color: #d8345f; }
   .invitation { text-align: left; animation: fade .5s ease; }
-  .invitation h1 { text-align: center; }
+  .invitation h1 {
+    font-family: var(--font-head); text-align: center; font-size: 30px; font-weight: 700; margin: 4px 0 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text;
+    background-clip: text; color: transparent;
+  }
+  .invitation ul { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 10px; }
+  .invitation li {
+    background: linear-gradient(135deg, #fff5fb, #f1efff); border: 1px solid #efe9ff; border-radius: 14px;
+    padding: 12px 16px; font-size: 16px;
+  }
+  .invitation li strong { color: var(--accent2); }
+  .invitation p { font-size: 16px; line-height: 1.5; }
   @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Konfetti beim Aufdecken der Einladung */
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+  .confetti-piece { position: absolute; top: -16px; width: 10px; height: 14px; border-radius: 2px; will-change: transform, opacity; }
+  @keyframes confetti-fall {
+    0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(105vh) rotate(720deg); opacity: .9; }
+  }
 
   .actions { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
   .ghost {
     background: #fff; color: var(--accent2); border: 2px solid var(--accent2); border-radius: 14px;
-    padding: 12px 16px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform .08s, background .15s;
+    padding: 12px 16px; font-family: var(--font-head); font-size: 16px; font-weight: 600; cursor: pointer; transition: transform .08s, background .15s;
   }
   .ghost:hover { background: #f3effff5; }
   .ghost:active { transform: scale(.97); }
@@ -114,9 +148,9 @@
     transition: transform .1s, box-shadow .2s, border-color .15s; text-align: center;
   }
   .game-tile:hover { transform: translateY(-2px); border-color: var(--accent2); box-shadow: 0 8px 22px rgba(124,92,255,.18); }
-  .game-tile .ico { font-size: 40px; }
-  .game-tile .t { font-weight: 800; margin-top: 6px; }
-  .game-tile .d { color: #7a7a90; font-size: 14px; margin-top: 2px; }
+  .game-tile .ico { font-size: 42px; }
+  .game-tile .t { font-family: var(--font-head); font-weight: 600; font-size: 18px; margin-top: 6px; }
+  .game-tile .d { color: var(--muted); font-size: 14px; margin-top: 2px; }
 
   #playArea {
     position: relative; height: 360px; border-radius: 18px; overflow: hidden; margin-top: 12px;
@@ -379,11 +413,29 @@
     localStorage.setItem('inviteBonusGranted', '1');
   }
 
+  // Konfetti-Regen 🎊
+  function confettiBurst() {
+    const colors = ['#ff4f9a', '#7c5cff', '#ffb23e', '#5be3a0', '#48c6ff', '#ff7b7b'];
+    const c = document.createElement('div'); c.id = 'confetti';
+    for (let i = 0; i < 90; i++) {
+      const p = document.createElement('div'); p.className = 'confetti-piece';
+      p.style.left = (Math.random() * 100) + 'vw';
+      p.style.background = colors[i % colors.length];
+      p.style.animation = 'confetti-fall ' + (2.4 + Math.random() * 1.8) + 's linear forwards';
+      p.style.animationDelay = (Math.random() * 0.6) + 's';
+      p.style.opacity = (0.7 + Math.random() * 0.3).toFixed(2);
+      c.appendChild(p);
+    }
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 5400);
+  }
+
   // Einladung -> Knopf zu den Spielen
   function renderInvitation(html) {
     $('result').innerHTML = html +
       '<div class="actions"><button class="primary" id="toGames">Weiter zu den Spielen 🎮</button></div>';
     show('result');
+    confettiBurst();
     $('toGames').addEventListener('click', () => show('gamesHub'));
   }
 
