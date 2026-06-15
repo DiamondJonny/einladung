@@ -38,12 +38,18 @@ const COIN_KEY = "asteroidCoins";
 function loadShop() { try { return JSON.parse(localStorage.getItem(SHOP_KEY) || "null"); } catch { return null; } }
 function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null }; }
 function saveShop(d) { localStorage.setItem(SHOP_KEY, JSON.stringify(d)); }
-function getCoins() {
-    const v = localStorage.getItem(COIN_KEY);
-    if (v === null) { localStorage.setItem(COIN_KEY, "120"); return 120; } // Start-Bonus
-    return parseInt(v);
-}
+function getCoins() { return parseInt(localStorage.getItem(COIN_KEY) || "0"); }
 function setCoins(n) { localStorage.setItem(COIN_KEY, String(n)); }
+
+// Einladungs-Startbonus: einmalig 120 Münzen für Eingeladene gutschreiben.
+const INVITE_BONUS = 120;
+const BONUS_KEY = "inviteBonusGranted";
+function grantInviteBonus() {
+    if (localStorage.getItem(BONUS_KEY)) return;
+    setCoins(getCoins() + INVITE_BONUS);
+    localStorage.setItem(BONUS_KEY, "1");
+}
+grantInviteBonus();
 
 function getUpgradePrice(def, level) {
     if (def.maxLevel && level >= def.maxLevel) return Infinity;
