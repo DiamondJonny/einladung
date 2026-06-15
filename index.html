@@ -138,6 +138,15 @@
   .mcard.flipped, .mcard.done { background: #fff; border: 2px solid #ece9ff; color: #2b2b3a; }
   .mcard.done { opacity: .55; cursor: default; }
   .center { text-align:center; }
+
+  /* Schwierigkeits-Auswahl */
+  .diffbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; margin:6px 0 4px; font-weight:700; font-size:14px; color:#6b6b80; }
+  .diffbtn {
+    border:2px solid #e4e4f0; background:#fff; color:#6b6b80; border-radius:999px; padding:6px 14px;
+    font-size:14px; font-weight:700; cursor:pointer; transition:all .12s;
+  }
+  .diffbtn:hover { border-color: var(--accent2); }
+  .diffbtn.on { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border-color:transparent; }
 </style>
 </head>
 <body>
@@ -342,6 +351,23 @@
   let cleanup = null;                 // Aufräum-Funktion des aktuell laufenden Spiels
   function stopGame() { if (cleanup) { try { cleanup(); } catch (e) {} cleanup = null; } }
 
+  // Gemeinsamer Schwierigkeitsgrad (über Spiele hinweg gemerkt)
+  let diff = 'mittel';
+  const DIFF = { leicht: 0.78, mittel: 1, schwer: 1.4 };
+  let ballCount = 1;                  // nur Tennis: Anzahl Bälle
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  // Liefert die HTML-Leiste; restart() wird bei Klick aufgerufen. extra = optionales Zusatz-HTML.
+  function diffBar(extra) {
+    return '<div class="diffbar">Schwierigkeit:' +
+      ['leicht', 'mittel', 'schwer'].map((d) =>
+        '<button class="diffbtn' + (d === diff ? ' on' : '') + '" data-d="' + d + '">' + cap(d) + '</button>').join('') +
+      (extra || '') + '</div>';
+  }
+  function wireDiff(restart) {
+    document.querySelectorAll('#gameInner .diffbtn[data-d]').forEach((b) =>
+      b.addEventListener('click', () => { diff = b.dataset.d; stopGame(); restart(); }));
+  }
+
   $('backToInv').addEventListener('click', () => { stopGame(); show('result'); });
   $('backToHub').addEventListener('click', () => { stopGame(); show('gamesHub'); });
   document.querySelectorAll('.game-tile').forEach((t) =>
@@ -357,20 +383,22 @@
   }
 
   /* --- Luftballons platzen --- */
-  let popTimer = null, popInterval = null;
+  let popTick = null, popSpawn = null;
   function stopPop() {
-    if (popTimer) clearTimeout(popTimer), popTimer = null;
-    if (popInterval) clearInterval(popInterval), popInterval = null;
+    if (popTick) { clearInterval(popTick); popTick = null; }
+    if (popSpawn) { clearTimeout(popSpawn); popSpawn = null; }
   }
   function startPop() {
     stopPop();
     cleanup = stopPop;
-    let score = 0, time = 30;
+    const f = DIFF[diff];
+    let score = 0, time = 30, elapsed = 0;
     const colors = ['#ff5da2','#7c5cff','#ffb04d','#48c6ff','#5be3a0','#ff7b7b'];
     $('gameInner').innerHTML =
-      '<h2>🎈 Luftballons platzen</h2>' +
+      '<h2>🎈 Luftballons platzen</h2>' + diffBar() +
       '<div class="hud"><span>Punkte: <span id="pScore">0</span></span><span>Zeit: <span id="pTime">30</span>s</span></div>' +
       '<div id="playArea"></div>';
+    wireDiff(startPop);
     const area = $('playArea');
     const tEl = $('pTime'), sEl = $('pScore');
 
@@ -380,7 +408,8 @@
       const c = colors[Math.floor(Math.random() * colors.length)];
       b.style.background = 'radial-gradient(circle at 30% 28%, #ffffffcc, ' + c + ' 60%)';
       b.style.left = (5 + Math.random() * 80) + '%';
-      const dur = 2600 + Math.random() * 2200;
+      // schneller bei höherer Schwierigkeit und mit fortlaufender Zeit
+      const dur = (2800 + Math.random() * 2000) / f / (1 + elapsed * 0.02);
       b.animate(
         [{ transform: 'translateY(0)' }, { transform: 'translateY(-' + (area.clientHeight + 120) + 'px)' }],
         { duration: dur, easing: 'linear' }
@@ -394,35 +423,44 @@
       });
       area.appendChild(b);
     }
-    popInterval = setInterval(spawn, 650);
-    spawn();
-    const tick = setInterval(() => {
-      time--; tEl.textContent = time;
+    // Spawn-Intervall sinkt mit Schwierigkeit und über die Zeit
+    function schedule() {
+      const base = 720 / f;
+      const ramp = Math.max(0.4, 1 - elapsed * 0.022);
+      popSpawn = setTimeout(() => { spawn(); schedule(); }, base * ramp);
+    }
+    spawn(); schedule();
+    popTick = setInterval(() => {
+      time--; elapsed++; tEl.textContent = time;
       if (time <= 0) {
-        clearInterval(tick); stopPop();
+        stopPop();
         area.innerHTML = '<div class="center" style="padding-top:120px;font-size:22px;font-weight:800">' +
           '🎉 Fertig! Du hast ' + score + ' Ballons geplatzt.<br><br>' +
           '<button class="primary" id="popAgain">Nochmal 🔁</button></div>';
         $('popAgain').addEventListener('click', startPop);
       }
     }, 1000);
-    popTimer = tick;
   }
 
   /* --- Memory --- */
   function startMemory() {
-    const icons = ['🎂','🎈','🎁','🎉','🍰','🎀'];
+    const pairsCount = diff === 'leicht' ? 6 : diff === 'mittel' ? 8 : 10;
+    const allIcons = ['🎂','🎈','🎁','🎉','🍰','🎀','🥳','🎊','🍭','🧁'];
+    const icons = allIcons.slice(0, pairsCount);
     let deck = icons.concat(icons);
     // einfacher Shuffle
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
     }
+    const cols = pairsCount <= 6 ? 4 : (pairsCount <= 8 ? 4 : 5);
     $('gameInner').innerHTML =
-      '<h2>🃏 Memory – finde die Paare</h2>' +
-      '<div class="hud"><span>Züge: <span id="mMoves">0</span></span><span><span id="mPairs">0</span>/6 Paare</span></div>' +
+      '<h2>🃏 Memory – finde die Paare</h2>' + diffBar() +
+      '<div class="hud"><span>Züge: <span id="mMoves">0</span></span><span><span id="mPairs">0</span>/' + pairsCount + ' Paare</span></div>' +
       '<div class="memory-grid" id="mGrid"></div>';
+    wireDiff(startMemory);
     const grid = $('mGrid');
+    grid.style.gridTemplateColumns = 'repeat(' + cols + ',1fr)';
     let first = null, lock = false, moves = 0, pairs = 0;
     deck.forEach((sym) => {
       const c = document.createElement('div');
@@ -435,7 +473,7 @@
         if (first.dataset.sym === c.dataset.sym) {
           first.classList.add('done'); c.classList.add('done');
           first = null; pairs++; $('mPairs').textContent = pairs;
-          if (pairs === 6) {
+          if (pairs === pairsCount) {
             setTimeout(() => {
               grid.insertAdjacentHTML('afterend',
                 '<div class="center" style="margin-top:14px;font-size:20px;font-weight:800">🏆 Alle Paare in ' +
@@ -455,16 +493,31 @@
 
   /* --- Tennis gegen KI (Pong) --- */
   function startTennis() {
+    const f = DIFF[diff];
+    const ballExtra = '<span style="margin-left:10px">Bälle:</span>' +
+      [1, 2, 3].map((n) => '<button class="diffbtn' + (n === ballCount ? ' on' : '') + '" data-balls="' + n + '">' + n + '</button>').join('');
     $('gameInner').innerHTML =
-      '<h2>🏓 Tennis gegen KI</h2>' +
+      '<h2>🏓 Tennis gegen KI</h2>' + diffBar(ballExtra) +
       '<p class="lead" style="margin:0 0 8px">Schläger mit Maus/Finger bewegen. Erster mit 5 Punkten gewinnt.</p>' +
       '<canvas id="cv" width="600" height="360" style="width:100%;border-radius:14px;background:#0e1230;display:block"></canvas>';
+    wireDiff(startTennis);
+    document.querySelectorAll('#gameInner .diffbtn[data-balls]').forEach((b) =>
+      b.addEventListener('click', () => { ballCount = +b.dataset.balls; stopGame(); startTennis(); }));
+
     const cv = $('cv'), ctx = cv.getContext('2d');
     const W = cv.width, H = cv.height;
     const ph = 70, pw = 10;
-    let py = H / 2 - ph / 2, ay = py;          // player / ai paddle y
-    let bx = W / 2, by = H / 2, bvx = 4, bvy = 2.4;
-    let ps = 0, as = 0, over = false, raf = 0;
+    const aiMax = 4.2 * f;                       // KI-Tempo steigt mit Schwierigkeit
+    const base = 3.6 * f;                         // Grund-Ballgeschwindigkeit
+    let py = H / 2 - ph / 2, ay = py;
+    let ps = 0, as = 0, raf = 0;
+    const colors = ['#fff', '#ffd24d', '#5be3a0'];
+
+    function newBall(dir) {
+      return { x: W / 2, y: H / 2, vx: base * dir, vy: (Math.random() * 4 - 2) || 2 };
+    }
+    let balls = [];
+    for (let i = 0; i < ballCount; i++) balls.push(newBall(i % 2 ? 1 : -1));
 
     function pointer(clientY) {
       const r = cv.getBoundingClientRect();
@@ -476,33 +529,34 @@
     cv.addEventListener('mousemove', onMove);
     cv.addEventListener('touchmove', onTouch, { passive: false });
 
-    function reset(dir) { bx = W / 2; by = H / 2; bvx = 4 * dir; bvy = (Math.random() * 4 - 2) || 2; }
     function loop() {
-      // KI bewegt sich gemächlich Richtung Ball
-      const target = by - ph / 2;
-      ay += Math.max(-4.2, Math.min(4.2, target - ay)) * 0.55;
+      // KI verfolgt den nächsten anfliegenden Ball
+      let target = null, bestDist = 1e9;
+      balls.forEach((b) => { if (b.vx > 0) { const d = W - b.x; if (d < bestDist) { bestDist = d; target = b; } } });
+      if (!target) target = balls[0];
+      const want = target.y - ph / 2;
+      ay += Math.max(-aiMax, Math.min(aiMax, want - ay)) * 0.6;
       ay = Math.max(0, Math.min(H - ph, ay));
 
-      bx += bvx; by += bvy;
-      if (by < 6 || by > H - 6) bvy = -bvy;
-      // Spieler-Schläger links
-      if (bx < 20 + pw && by > py && by < py + ph && bvx < 0) { bvx = -bvx * 1.05; bvy += (by - (py + ph / 2)) * 0.05; }
-      // KI-Schläger rechts
-      if (bx > W - 20 - pw && by > ay && by < ay + ph && bvx > 0) { bvx = -bvx * 1.05; bvy += (by - (ay + ph / 2)) * 0.05; }
-      if (bx < 0) { as++; reset(1); }
-      if (bx > W) { ps++; reset(-1); }
+      balls.forEach((b) => {
+        b.x += b.vx; b.y += b.vy;
+        if (b.y < 6 || b.y > H - 6) b.vy = -b.vy;
+        if (b.x < 20 + pw && b.y > py && b.y < py + ph && b.vx < 0) { b.vx = -b.vx * 1.05; b.vy += (b.y - (py + ph / 2)) * 0.05; }
+        if (b.x > W - 20 - pw && b.y > ay && b.y < ay + ph && b.vx > 0) { b.vx = -b.vx * 1.05; b.vy += (b.y - (ay + ph / 2)) * 0.05; }
+        if (b.x < 0) { as++; Object.assign(b, newBall(1)); }
+        if (b.x > W) { ps++; Object.assign(b, newBall(-1)); }
+      });
 
       ctx.fillStyle = '#0e1230'; ctx.fillRect(0, 0, W, H);
       ctx.setLineDash([8, 12]); ctx.strokeStyle = '#39407a'; ctx.beginPath();
       ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = '#ff5da2'; ctx.fillRect(14, py, pw, ph);
       ctx.fillStyle = '#7c5cff'; ctx.fillRect(W - 14 - pw, ay, pw, ph);
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 7, 0, 7); ctx.fill();
+      balls.forEach((b, i) => { ctx.fillStyle = colors[i % colors.length]; ctx.beginPath(); ctx.arc(b.x, b.y, 7, 0, 7); ctx.fill(); });
       ctx.font = 'bold 30px system-ui'; ctx.fillStyle = '#cfd3ff'; ctx.textAlign = 'center';
       ctx.fillText(ps, W / 2 - 40, 40); ctx.fillText(as, W / 2 + 40, 40);
 
       if (ps >= 5 || as >= 5) {
-        over = true;
         ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = '#fff'; ctx.font = 'bold 30px system-ui';
         ctx.fillText(ps > as ? '🏆 Du gewinnst!' : '🤖 KI gewinnt!', W / 2, H / 2);
@@ -523,14 +577,16 @@
 
   /* --- Fliegen (tippen, Hindernissen ausweichen) --- */
   function startFly() {
+    const f = DIFF[diff];
     $('gameInner').innerHTML =
-      '<h2>🚁 Fliegen</h2>' +
+      '<h2>🚁 Fliegen</h2>' + diffBar() +
       '<p class="lead" style="margin:0 0 8px">Tippen/Klicken lässt dich steigen. Weiche den Säulen aus!</p>' +
       '<canvas id="fcv" width="600" height="360" style="width:100%;border-radius:14px;background:linear-gradient(#bfe6ff,#eaf6ff);display:block;cursor:pointer"></canvas>';
+    wireDiff(startFly);
     const cv = $('fcv'), ctx = cv.getContext('2d');
     const W = cv.width, H = cv.height;
     let y = H / 2, v = 0, raf = 0, score = 0, dead = false;
-    const gap = 120, pw = 56;
+    const gap = diff === 'leicht' ? 150 : (diff === 'mittel' ? 120 : 96), pw = 56;
     let pipes = [{ x: W + 40, h: 90 }, { x: W + 40 + (W / 2 + 40), h: 150 }];
 
     const flap = () => { if (!dead) v = -5.4; };
@@ -540,8 +596,10 @@
 
     function loop() {
       v += 0.32; y += v;
+      // Tempo steigt mit Schwierigkeit und mit dem Punktestand (progressiv)
+      const speed = (2.4 * f) + Math.min(score * 0.08, 3);
       pipes.forEach((p) => {
-        p.x -= 2.6;
+        p.x -= speed;
         if (p.x < -pw) { p.x = W + 40; p.h = 60 + Math.random() * (H - gap - 120); score++; }
       });
       // Kollision
