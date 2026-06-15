@@ -7,15 +7,42 @@
 <style>
   :root { --accent: #ff5da2; --accent2: #7c5cff; }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
     margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: linear-gradient(135deg, #fff0f6 0%, #f0f0ff 100%);
-    color: #2b2b3a; padding: 20px;
+    background: linear-gradient(135deg, #fff0f6 0%, #eef0ff 60%, #f3eaff 100%);
+    color: #2b2b3a; padding: 20px; overflow-x: hidden;
   }
+
+  /* ---- Verschwommener Hintergrund mit aufsteigenden Luftballons ---- */
+  .bg {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+    filter: blur(3px); opacity: .7;
+  }
+  .balloon {
+    position: absolute; bottom: -160px; width: 56px; height: 70px; border-radius: 50% 50% 48% 48%;
+    animation: rise linear infinite;
+  }
+  .balloon::after { /* Schnur */
+    content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 60px;
+    background: rgba(0,0,0,.18); transform: translateX(-50%);
+  }
+  .balloon::before { /* Glanzpunkt */
+    content: ""; position: absolute; left: 26%; top: 20%; width: 14px; height: 18px;
+    background: rgba(255,255,255,.55); border-radius: 50%; filter: blur(1px);
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) translateX(0) rotate(-4deg); }
+    50%  { transform: translateY(-55vh) translateX(22px) rotate(4deg); }
+    100% { transform: translateY(-115vh) translateX(0) rotate(-4deg); }
+  }
+
   .card {
-    background: #fff; border-radius: 24px; padding: 36px 28px; max-width: 560px; width: 100%;
-    box-shadow: 0 20px 60px rgba(124, 92, 255, 0.18); text-align: center;
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(2px);
+    border-radius: 24px; padding: 36px 28px; max-width: 620px; width: 100%;
+    box-shadow: 0 20px 60px rgba(124, 92, 255, 0.22); text-align: center;
   }
   .emoji { font-size: 56px; line-height: 1; margin-bottom: 8px; }
   h2 { margin: 0 0 6px; font-size: 24px; }
@@ -26,37 +53,137 @@
     transition: border-color .15s; text-align: center;
   }
   input[type=text]:focus { border-color: var(--accent2); }
-  button {
-    padding: 16px 18px; font-size: 18px; font-weight: 600; color: #fff; border: 0; border-radius: 14px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2)); cursor: pointer; transition: transform .08s, filter .15s;
+
+  button.primary {
+    position: relative; padding: 16px 18px; font-size: 18px; font-weight: 700; color: #fff; border: 0;
+    border-radius: 14px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    cursor: pointer; transition: transform .08s, filter .15s, box-shadow .2s;
+    box-shadow: 0 6px 18px rgba(124,92,255,.35);
   }
-  button:hover { filter: brightness(1.05); }
-  button:active { transform: scale(.98); }
-  button:disabled { opacity: .6; cursor: default; }
+  button.primary:hover { filter: brightness(1.06); }
+  button.primary:active { transform: scale(.97); }
+  button.primary:disabled { opacity: .6; cursor: default; }
+  /* Aufleuchten beim Drücken */
+  button.glow { animation: glow .7s ease; }
+  @keyframes glow {
+    0%   { box-shadow: 0 0 0 0 rgba(255,93,162,.7), 0 0 0 0 rgba(124,92,255,.7); filter: brightness(1.6); }
+    60%  { box-shadow: 0 0 28px 10px rgba(255,93,162,.55), 0 0 50px 18px rgba(124,92,255,.45); filter: brightness(1.25); }
+    100% { box-shadow: 0 6px 18px rgba(124,92,255,.35); filter: brightness(1); }
+  }
+
   .msg { margin-top: 16px; min-height: 24px; font-weight: 600; }
   .msg.err { color: #d8345f; }
   .invitation { text-align: left; animation: fade .5s ease; }
   .invitation h1 { text-align: center; }
   @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .actions { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .ghost {
+    background: #fff; color: var(--accent2); border: 2px solid var(--accent2); border-radius: 14px;
+    padding: 12px 16px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform .08s, background .15s;
+  }
+  .ghost:hover { background: #f3effff5; }
+  .ghost:active { transform: scale(.97); }
+
+  /* ---- Spiele ---- */
+  .games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  @media (max-width: 480px) { .games-grid { grid-template-columns: 1fr; } }
+  .game-tile {
+    border: 2px solid #ece9ff; border-radius: 18px; padding: 18px; cursor: pointer; background: #fbfaff;
+    transition: transform .1s, box-shadow .2s, border-color .15s; text-align: center;
+  }
+  .game-tile:hover { transform: translateY(-2px); border-color: var(--accent2); box-shadow: 0 8px 22px rgba(124,92,255,.18); }
+  .game-tile .ico { font-size: 40px; }
+  .game-tile .t { font-weight: 800; margin-top: 6px; }
+  .game-tile .d { color: #7a7a90; font-size: 14px; margin-top: 2px; }
+
+  #playArea {
+    position: relative; height: 360px; border-radius: 18px; overflow: hidden; margin-top: 12px;
+    background: linear-gradient(180deg, #eaf3ff, #f7eeff); border: 2px solid #ece9ff; touch-action: manipulation;
+  }
+  .hud { display: flex; justify-content: space-between; font-weight: 800; margin: 10px 4px 0; }
+  .pop {
+    position: absolute; bottom: -90px; width: 50px; height: 62px; border-radius: 50% 50% 48% 48%;
+    cursor: pointer; will-change: transform;
+  }
+  .pop::before { content:""; position:absolute; left:26%; top:18%; width:12px; height:16px; background:rgba(255,255,255,.6); border-radius:50%; }
+
+  .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  .mcard {
+    aspect-ratio: 3/4; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer;
+    color: transparent; transition: transform .15s; user-select: none;
+  }
+  .mcard.flipped, .mcard.done { background: #fff; border: 2px solid #ece9ff; color: #2b2b3a; }
+  .mcard.done { opacity: .55; cursor: default; }
+  .center { text-align:center; }
 </style>
 </head>
 <body>
+  <div class="bg" id="bg"></div>
+
   <div class="card">
+    <!-- 1) Namensgate -->
     <div id="gate">
       <div class="emoji">🎂</div>
       <h2>Geburtstagseinladung</h2>
       <p class="lead">Gib deinen <strong>Vornamen</strong> ein, um deine Einladung zu sehen.</p>
       <form id="form" autocomplete="off">
         <input id="name" type="text" placeholder="Dein Vorname" autocapitalize="off" autocorrect="off" spellcheck="false" />
-        <button id="submit" type="submit">Einladung öffnen 🎉</button>
+        <button id="submit" class="primary" type="submit">Einladung öffnen 🎉</button>
       </form>
       <div id="msg" class="msg"></div>
     </div>
+
+    <!-- 2) Einladung -->
     <div id="result" class="invitation" style="display:none"></div>
+
+    <!-- 3) Spiele-Hub -->
+    <div id="gamesHub" style="display:none">
+      <div class="emoji">🎮</div>
+      <h2>Geschafft! Jetzt wird gespielt 🥳</h2>
+      <p class="lead">Such dir ein Spiel aus:</p>
+      <div class="games-grid">
+        <div class="game-tile" data-game="pop">
+          <div class="ico">🎈</div><div class="t">Luftballons platzen</div><div class="d">So viele wie möglich in 30 Sek.</div>
+        </div>
+        <div class="game-tile" data-game="memory">
+          <div class="ico">🃏</div><div class="t">Memory</div><div class="d">Finde alle Paare</div>
+        </div>
+      </div>
+      <div class="actions"><button class="ghost" id="backToInv">← Zur Einladung</button></div>
+    </div>
+
+    <!-- Einzelnes Spiel -->
+    <div id="gameView" style="display:none">
+      <div id="gameInner"></div>
+      <div class="actions"><button class="ghost" id="backToHub">← Zur Spieleauswahl</button></div>
+    </div>
   </div>
 
 <script src="data.js"></script>
 <script>
+/* =================== Hintergrund-Ballons =================== */
+(function () {
+  const bg = document.getElementById('bg');
+  const colors = ['#ff5da2','#7c5cff','#ffb04d','#48c6ff','#5be3a0','#ff7b7b','#c77dff'];
+  const N = 16;
+  for (let i = 0; i < N; i++) {
+    const b = document.createElement('div');
+    b.className = 'balloon';
+    const c = colors[i % colors.length];
+    b.style.background = 'radial-gradient(circle at 30% 28%, #ffffffaa, ' + c + ' 60%)';
+    b.style.left = (Math.floor((i / N) * 100) + (i * 7 % 9)) + '%';
+    const scale = 0.7 + (i % 5) * 0.18;
+    b.style.transform = 'scale(' + scale.toFixed(2) + ')';
+    const dur = 14 + (i % 7) * 3;          // 14–32s
+    b.style.animationDuration = dur + 's';
+    b.style.animationDelay = '-' + ((i * 2.3) % dur).toFixed(1) + 's';
+    bg.appendChild(b);
+  }
+})();
+
+/* =================== Entschlüsselung + Namensgate =================== */
 (function () {
   const data = window.INVITE_DATA;
   const enc = new TextEncoder();
@@ -74,7 +201,6 @@
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   }
-  // Levenshtein-Distanz (erlaubt kleine Tippfehler)
   function lev(a, b) {
     const m = a.length, n = b.length;
     if (!m) return n; if (!n) return m;
@@ -89,7 +215,6 @@
     }
     return prev[n];
   }
-
   async function deriveKEK(name, salt) {
     const material = await crypto.subtle.importKey('raw', enc.encode(name), 'PBKDF2', false, ['deriveKey']);
     return crypto.subtle.deriveKey(
@@ -97,10 +222,7 @@
       material, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
     );
   }
-
-  // Kandidatennamen (normalisiert) aus den Eintraegen lesen
   const candidates = data.entries.map((e) => ({ name: dec.decode(b64ToBytes(e.n)), entry: e }));
-
   function findMatch(input) {
     let best = null;
     for (const c of candidates) {
@@ -110,7 +232,6 @@
     }
     return best ? best.c : null;
   }
-
   async function reveal(match) {
     const salt = b64ToBytes(data.salt);
     const kek = await deriveKEK(match.name, salt);
@@ -124,36 +245,155 @@
     return dec.decode(invBytes);
   }
 
+  function show(id) {
+    ['gate','result','gamesHub','gameView'].forEach((x) => $(x).style.display = 'none');
+    $(id).style.display = 'block';
+  }
+
+  // Einladung -> Knopf zu den Spielen
+  function renderInvitation(html) {
+    $('result').innerHTML = html +
+      '<div class="actions"><button class="primary" id="toGames">Weiter zu den Spielen 🎮</button></div>';
+    show('result');
+    $('toGames').addEventListener('click', () => show('gamesHub'));
+  }
+
+  const submitBtn = $('submit');
   $('form').addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const raw = $('name').value;
-    const input = normalize(raw);
+    // Aufleuchten
+    submitBtn.classList.remove('glow'); void submitBtn.offsetWidth; submitBtn.classList.add('glow');
+
+    const input = normalize($('name').value);
     const msg = $('msg');
-    msg.className = 'msg';
-    msg.textContent = '';
+    msg.className = 'msg'; msg.textContent = '';
     if (!input) { msg.className = 'msg err'; msg.textContent = 'Bitte gib deinen Vornamen ein.'; return; }
 
-    $('submit').disabled = true;
+    submitBtn.disabled = true;
     msg.textContent = 'Einen Moment …';
     const match = findMatch(input);
     if (!match) {
       msg.className = 'msg err';
       msg.textContent = 'Diesen Namen finde ich leider nicht auf der Gästeliste. 🤔';
-      $('submit').disabled = false;
+      submitBtn.disabled = false;
       return;
     }
     try {
       const html = await reveal(match);
-      $('gate').style.display = 'none';
-      const r = $('result');
-      r.innerHTML = html;
-      r.style.display = 'block';
+      renderInvitation(html);
     } catch (e) {
-      msg.className = 'msg err';
-      msg.textContent = 'Hoppla, da ist etwas schiefgelaufen.';
-      $('submit').disabled = false;
+      msg.className = 'msg err'; msg.textContent = 'Hoppla, da ist etwas schiefgelaufen.';
+      submitBtn.disabled = false;
     }
   });
+
+  /* =================== Spiele =================== */
+  $('backToInv').addEventListener('click', () => show('result'));
+  $('backToHub').addEventListener('click', () => { stopPop(); show('gamesHub'); });
+  document.querySelectorAll('.game-tile').forEach((t) =>
+    t.addEventListener('click', () => openGame(t.dataset.game)));
+
+  function openGame(which) {
+    show('gameView');
+    if (which === 'pop') startPop();
+    else if (which === 'memory') startMemory();
+  }
+
+  /* --- Luftballons platzen --- */
+  let popTimer = null, popInterval = null;
+  function stopPop() {
+    if (popTimer) clearTimeout(popTimer), popTimer = null;
+    if (popInterval) clearInterval(popInterval), popInterval = null;
+  }
+  function startPop() {
+    stopPop();
+    let score = 0, time = 30;
+    const colors = ['#ff5da2','#7c5cff','#ffb04d','#48c6ff','#5be3a0','#ff7b7b'];
+    $('gameInner').innerHTML =
+      '<h2>🎈 Luftballons platzen</h2>' +
+      '<div class="hud"><span>Punkte: <span id="pScore">0</span></span><span>Zeit: <span id="pTime">30</span>s</span></div>' +
+      '<div id="playArea"></div>';
+    const area = $('playArea');
+    const tEl = $('pTime'), sEl = $('pScore');
+
+    function spawn() {
+      const b = document.createElement('div');
+      b.className = 'pop';
+      const c = colors[Math.floor(Math.random() * colors.length)];
+      b.style.background = 'radial-gradient(circle at 30% 28%, #ffffffcc, ' + c + ' 60%)';
+      b.style.left = (5 + Math.random() * 80) + '%';
+      const dur = 2600 + Math.random() * 2200;
+      b.animate(
+        [{ transform: 'translateY(0)' }, { transform: 'translateY(-' + (area.clientHeight + 120) + 'px)' }],
+        { duration: dur, easing: 'linear' }
+      ).onfinish = () => b.remove();
+      b.addEventListener('pointerdown', () => {
+        if (b.dataset.popped) return; b.dataset.popped = '1';
+        score++; sEl.textContent = score;
+        b.textContent = '💥'; b.style.background = 'transparent';
+        b.style.fontSize = '34px'; b.style.textAlign = 'center';
+        setTimeout(() => b.remove(), 120);
+      });
+      area.appendChild(b);
+    }
+    popInterval = setInterval(spawn, 650);
+    spawn();
+    const tick = setInterval(() => {
+      time--; tEl.textContent = time;
+      if (time <= 0) {
+        clearInterval(tick); stopPop();
+        area.innerHTML = '<div class="center" style="padding-top:120px;font-size:22px;font-weight:800">' +
+          '🎉 Fertig! Du hast ' + score + ' Ballons geplatzt.<br><br>' +
+          '<button class="primary" id="popAgain">Nochmal 🔁</button></div>';
+        $('popAgain').addEventListener('click', startPop);
+      }
+    }, 1000);
+    popTimer = tick;
+  }
+
+  /* --- Memory --- */
+  function startMemory() {
+    const icons = ['🎂','🎈','🎁','🎉','🍰','🎀'];
+    let deck = icons.concat(icons);
+    // einfacher Shuffle
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    $('gameInner').innerHTML =
+      '<h2>🃏 Memory – finde die Paare</h2>' +
+      '<div class="hud"><span>Züge: <span id="mMoves">0</span></span><span><span id="mPairs">0</span>/6 Paare</span></div>' +
+      '<div class="memory-grid" id="mGrid"></div>';
+    const grid = $('mGrid');
+    let first = null, lock = false, moves = 0, pairs = 0;
+    deck.forEach((sym) => {
+      const c = document.createElement('div');
+      c.className = 'mcard'; c.dataset.sym = sym; c.textContent = sym;
+      c.addEventListener('click', () => {
+        if (lock || c.classList.contains('flipped') || c.classList.contains('done')) return;
+        c.classList.add('flipped');
+        if (!first) { first = c; return; }
+        moves++; $('mMoves').textContent = moves;
+        if (first.dataset.sym === c.dataset.sym) {
+          first.classList.add('done'); c.classList.add('done');
+          first = null; pairs++; $('mPairs').textContent = pairs;
+          if (pairs === 6) {
+            setTimeout(() => {
+              grid.insertAdjacentHTML('afterend',
+                '<div class="center" style="margin-top:14px;font-size:20px;font-weight:800">🏆 Alle Paare in ' +
+                moves + ' Zügen! <br><br><button class="primary" id="memAgain">Nochmal 🔁</button></div>');
+              $('memAgain').addEventListener('click', startMemory);
+            }, 300);
+          }
+        } else {
+          lock = true;
+          const a = first; first = null;
+          setTimeout(() => { a.classList.remove('flipped'); c.classList.remove('flipped'); lock = false; }, 750);
+        }
+      });
+      grid.appendChild(c);
+    });
+  }
 })();
 </script>
 </body>
