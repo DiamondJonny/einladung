@@ -436,7 +436,43 @@ class AsteroidsGame extends HTMLElement {
         else if (reward.t === "feature") { shop.ownedFeatures.push(reward.v.id); this._packReveal = `⚡ Feature gezogen: <b>${reward.v.name}</b>! (im Spiel per Knopf nutzen)`; }
         else if (reward.t === "pilot") { shop.ownedPilots.push(reward.v.id); shop.equippedPilot = reward.v.id; this._packReveal = `🧑‍🚀 Pilot gezogen: <b>${reward.v.name}</b>!`; }
         else { this._coins += reward.v; setCoins(this._coins); this._packReveal = `💰 Diesmal kein neues Teil – dafür <b>+${reward.v} Münzen</b>!`; }
-        saveShop(shop); this._showShop();
+        saveShop(shop);
+        // Greifarm-Automat-Animation, danach Shop mit Gewinn-Anzeige
+        const icon = reward.t === "coins" ? "💰" : reward.t === "feature" ? reward.v.icon : reward.t === "pilot" ? reward.v.emoji : "🚀";
+        const label = reward.t === "coins" ? `+${reward.v} Münzen` : reward.v.name;
+        this._playPackAnim(icon, label, () => this._showShop());
+    }
+
+    // Greifarm-Automat: Klaue fährt runter in die Kiste und zieht den Gewinn
+    _playPackAnim(icon, label, done) {
+        const ov = document.createElement("div");
+        ov.innerHTML = `<style>
+          .pa{position:fixed;inset:0;z-index:3000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(5,5,20,.94);overflow:hidden;font-family:'Segoe UI',sans-serif}
+          .pa-rope{width:4px;height:60px;background:#9aa;animation:pa-rope 1.3s ease-in-out forwards;transform-origin:top}
+          .pa-claw{font-size:52px;margin-top:-10px;animation:pa-drop 1.3s ease-in-out forwards}
+          @keyframes pa-rope{0%{height:30px}45%{height:230px}55%{height:230px}100%{height:120px}}
+          @keyframes pa-drop{0%{transform:translateY(0)}45%{transform:translateY(200px)}55%{transform:translateY(200px)}100%{transform:translateY(90px)}}
+          .pa-box{font-size:104px;margin-top:30px;animation:pa-shake .35s ease .5s 2}
+          @keyframes pa-shake{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-9px) rotate(-4deg)}75%{transform:translateX(9px) rotate(4deg)}}
+          .pa-prize{position:absolute;text-align:center;opacity:0;transform:scale(.3);animation:pa-prize .55s cubic-bezier(.2,1.4,.4,1) 1.35s forwards}
+          .pa-prize .em{font-size:88px}
+          .pa-prize .lbl{display:block;color:#fff;font-weight:800;font-size:22px;margin-top:8px;text-shadow:0 2px 8px #000}
+          .pa-tap{position:absolute;bottom:30px;color:#cfd3ff;font-weight:700;opacity:0;animation:pa-fade .4s ease 1.9s forwards}
+          @keyframes pa-fade{to{opacity:1}}
+        </style>
+        <div class="pa">
+          <div class="pa-rope"></div>
+          <div class="pa-claw">🦾</div>
+          <div class="pa-box">📦</div>
+          <div class="pa-prize"><div class="em">${icon}</div><span class="lbl">${label}</span></div>
+          <div class="pa-tap">Tippen zum Schließen</div>
+        </div>`;
+        const root = this.shadowRoot;
+        root.appendChild(ov);
+        let closed = false;
+        const finish = () => { if (closed) return; closed = true; clearTimeout(tm); ov.remove(); done(); };
+        const tm = setTimeout(finish, 3200);
+        ov.querySelector(".pa").addEventListener("click", () => { if (Date.now()) finish(); });
     }
 
     _drawPreview(ctx, skin, cx, cy, scale) {
