@@ -327,8 +327,10 @@ class AsteroidsGame extends HTMLElement {
 
         // Ship grid
         const grid = sr.getElementById("ship-grid");
-        const allShips = [...SHIPS];
+        // Nur kaufbare Schiffe + bereits besessene Pack-Schiffe; nach Wert sortiert
+        const allShips = SHIPS.filter(s => !s.packOnly || shop.ownedShips.includes(s.id));
         if (shop.customShip) allShips.push({ id: "custom", name: "Eigenes", price: 0, ...shop.customShip });
+        allShips.sort((a, b) => (a.price == null ? 100000 : a.price) - (b.price == null ? 100000 : b.price));
         for (const s of allShips) {
             const owned = s.id === "custom" || shop.ownedShips.includes(s.id);
             const active = shop.equipped === s.id;
@@ -679,6 +681,12 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         const ownedFeats = this._shop.ownedFeatures || [];
         // Begleit-Drohnen (passiv): fliegen mit und schießen für dich
         const drones = ownedFeats.includes("drones") ? [{ ang: 0, cd: 0, x: null, y: null }, { ang: Math.PI, cd: 0.45, x: null, y: null }] : [];
+
+        // Böse Gegner (nur auf der Kampfzone) – Stärke skaliert mit dem eigenen Schiff
+        const battle = !!curMap.battle;
+        const shipVal = skin.price != null ? skin.price : (skin.beams ? skin.beams * 250 : 50);
+        const enemyLevel = battle ? Math.min(6, 1 + Math.floor(shipVal / 700)) : 0;
+        let enemies = [], enemyBullets = [], enemySpawnCd = 1.5;
         const cooldowns = {};
         const featBtns = {};
         const activateFeature = (id) => {
@@ -831,6 +839,53 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 if (p.life <= 0) particles.splice(i, 1);
             }
 
+            // Böse Gegner (Kampfzone)
+            if (battle && alive) {
+                enemySpawnCd -= dt;
+                if (enemySpawnCd <= 0 && enemies.length < 2 + enemyLevel) {
+                    const ea = Math.random() * Math.PI * 2, ed = 300 + Math.random() * 140;
+                    enemies.push({ x: ship.x + Math.cos(ea) * ed, y: ship.y + Math.sin(ea) * ed, hp: 1 + Math.floor(enemyLevel / 2), cd: 1 + Math.random() });
+                    enemySpawnCd = Math.max(1.0, 3 - enemyLevel * 0.25);
+                }
+                const espeed = 30 + enemyLevel * 9;
+                for (const en of enemies) {
+                    const a = Math.atan2(ship.y - en.y, ship.x - en.x);
+                    en.x += Math.cos(a) * espeed * dt; en.y += Math.sin(a) * espeed * dt;
+                    en.cd -= dt;
+                    if (en.cd <= 0) {
+                        const bs = 200 + enemyLevel * 15;
+                        enemyBullets.push({ x: en.x, y: en.y, vx: Math.cos(a) * bs, vy: Math.sin(a) * bs, life: 3 });
+                        en.cd = Math.max(0.8, 2 - enemyLevel * 0.18);
+                    }
+                    if (invincible <= 0 && Math.hypot(en.x - ship.x, en.y - ship.y) < 18) {
+                        lives--; spawnParticles(ship.x, ship.y, 12);
+                        if (lives <= 0) { alive = false; endGame(); return; }
+                        invincible = 2; ship.vx = 0; ship.vy = 0;
+                    }
+                }
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const b = bullets[i];
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        const en = enemies[j];
+                        if (Math.hypot(b.x - en.x, b.y - en.y) < 14) {
+                            bullets.splice(i, 1); en.hp--; spawnParticles(en.x, en.y, 5);
+                            if (en.hp <= 0) { enemies.splice(j, 1); this._coins += 5; setCoins(this._coins); coinEl.textContent = this._coins; score += 50; totalKills++; }
+                            break;
+                        }
+                    }
+                }
+                for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                    const eb = enemyBullets[i];
+                    eb.x += eb.vx * dt; eb.y += eb.vy * dt; eb.life -= dt;
+                    if (eb.life <= 0) { enemyBullets.splice(i, 1); continue; }
+                    if (invincible <= 0 && Math.hypot(eb.x - ship.x, eb.y - ship.y) < 13) {
+                        enemyBullets.splice(i, 1); lives--; spawnParticles(ship.x, ship.y, 12);
+                        if (lives <= 0) { alive = false; endGame(); return; }
+                        invincible = 2; ship.vx = 0; ship.vy = 0;
+                    }
+                }
+                enemies = enemies.filter(en => Math.hypot(en.x - ship.x, en.y - ship.y) < 950);
+            }
         };
 
         const draw = () => {
@@ -865,6 +920,22 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
             if (drones.length) {
                 ctx.font = "16px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 for (const dr of drones) { if (dr.x == null) continue; ctx.fillText("🤖", dr.x + ox, dr.y + oy); }
+            }
+
+            // Böse Gegner + ihre Schüsse
+            for (const en of enemies) {
+                const ex = en.x + ox, ey = en.y + oy;
+                if (ex < -40 || ex > W + 40 || ey < -40 || ey > H + 40) continue;
+                ctx.save(); ctx.translate(ex, ey);
+                ctx.strokeStyle = "#ff5252"; ctx.lineWidth = 2.5;
+                ctx.beginPath(); ctx.ellipse(0, 2, 13, 5, 0, 0, 6.2832); ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, -1, 6, Math.PI, 0); ctx.stroke();
+                ctx.restore();
+            }
+            for (const eb of enemyBullets) {
+                const bx = eb.x + ox, by = eb.y + oy;
+                ctx.fillStyle = "#ff1744"; ctx.shadowColor = "rgba(255,23,68,.5)"; ctx.shadowBlur = 6;
+                ctx.beginPath(); ctx.arc(bx, by, 3.5, 0, 6.2832); ctx.fill(); ctx.shadowBlur = 0;
             }
 
             // Bullets
