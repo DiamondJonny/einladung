@@ -44,10 +44,31 @@ const FEATURES = [
     { id: "bomb",     name: "Bombe 💥",   icon: "💥", cooldown: 16, desc: "Zerstört Brocken in der Nähe" },
 ];
 
+// Piloten (sitzen im Raumschiff) – im Shop kaufbar oder aus dem Piloten-Pack
+const PILOTS = [
+    { id: "astro",   name: "Astronaut 👨‍🚀", emoji: "👨‍🚀", price: 0 },
+    { id: "astro2",  name: "Astronautin 👩‍🚀", emoji: "👩‍🚀", price: 60 },
+    { id: "alien",   name: "Alien 👽",        emoji: "👽", price: 80 },
+    { id: "robot",   name: "Roboter 🤖",      emoji: "🤖", price: 80 },
+    { id: "cat",     name: "Weltraum-Katze 🐱", emoji: "🐱", price: 100 },
+    { id: "dog",     name: "Astro-Hund 🐶",   emoji: "🐶", price: 100 },
+    { id: "fox",     name: "Fuchs 🦊",        emoji: "🦊", price: 120 },
+    { id: "frog",    name: "Frosch 🐸",       emoji: "🐸", price: 120 },
+    { id: "monkey",  name: "Affe 🐵",         emoji: "🐵", price: 120 },
+    { id: "dino",    name: "Dino 🦖",         emoji: "🦖", price: 150 },
+    { id: "panda",   name: "Panda 🐼",        emoji: "🐼", price: 150 },
+    { id: "alien2",  name: "Mini-Alien 👾",   emoji: "👾", price: 180 },
+    { id: "lion",    name: "Löwe 🦁",         emoji: "🦁", price: 200 },
+    { id: "penguin", name: "Pinguin 🐧",      emoji: "🐧", price: 200 },
+    { id: "clown",   name: "Clown 🤡",        emoji: "🤡", price: 220 },
+    { id: "ghost",   name: "Geist 👻",        emoji: "👻", price: 250 },
+];
+
 // Verschiedene Packs für verschiedene Sachen
 const PACKS = [
     { id: "ship",    name: "🚀 Schiff-Pack",    cost: 250, kind: "ship",      desc: "Zufälliges normales Schiff" },
     { id: "feature", name: "⚡ Feature-Pack",   cost: 250, kind: "feature",   desc: "Zufälliges Feature (Teleport …)" },
+    { id: "pilot",   name: "🧑‍🚀 Piloten-Pack", cost: 200, kind: "pilot",     desc: "Zufälliger Pilot fürs Cockpit" },
     { id: "legend",  name: "🌟 Legendär-Pack",  cost: 700, kind: "legendary", desc: "Seltenes Schiff – nur hier!" },
 ];
 
@@ -71,7 +92,7 @@ const SHOP_KEY = "asteroidsShop";
 // korrekten Namen vergeben (in index.html), nicht hier automatisch.
 const COIN_KEY = "points";
 function loadShop() { try { return JSON.parse(localStorage.getItem(SHOP_KEY) || "null"); } catch { return null; } }
-function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null, ownedMaps: ["classic"], equippedMap: "classic", ownedFeatures: [] }; }
+function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null, ownedMaps: ["classic"], equippedMap: "classic", ownedFeatures: [], ownedPilots: ["astro"], equippedPilot: "astro" }; }
 function saveShop(d) { localStorage.setItem(SHOP_KEY, JSON.stringify(d)); }
 function getCoins() { return parseInt(localStorage.getItem(COIN_KEY) || "0"); }
 function setCoins(n) { localStorage.setItem(COIN_KEY, String(n)); }
@@ -192,6 +213,7 @@ class AsteroidsGame extends HTMLElement {
         this._shop = loadShop() || defaultShop();
         if (!this._shop.ownedMaps) { this._shop.ownedMaps = ["classic"]; this._shop.equippedMap = "classic"; }
         if (!this._shop.ownedFeatures) { this._shop.ownedFeatures = []; }
+        if (!this._shop.ownedPilots) { this._shop.ownedPilots = ["astro"]; this._shop.equippedPilot = "astro"; }
         this._coins = getCoins();
         this._showShop();
     }
@@ -256,6 +278,10 @@ class AsteroidsGame extends HTMLElement {
             <div class="section">📦 Packs ziehen</div>
             ${this._packReveal ? `<div style="background:rgba(0,230,118,0.15);border:1px solid #00e676;border-radius:10px;padding:8px 12px;margin-bottom:8px;color:#b9f6ca;font-weight:700">${this._packReveal}</div>` : ""}
             ${PACKS.map(p => `<button class="play-btn pack-btn" data-pack="${p.id}" ${coins >= p.cost ? "" : "disabled"} style="background:linear-gradient(135deg,#ff9800,#e91e63);margin-bottom:6px">${p.name} — ${p.cost} 💰<br><small style="font-weight:400;opacity:.85">${p.desc}</small></button>`).join("")}
+          </div>
+          <div>
+            <div class="section">🧑‍🚀 Piloten (sitzen im Raumschiff)</div>
+            <div class="grid" id="pilot-grid"></div>
           </div>
           <div>
             <div class="section">🗺️ Maps</div>
@@ -379,12 +405,14 @@ class AsteroidsGame extends HTMLElement {
         if (pack.kind === "ship") pool = SHIPS.filter(s => !s.packOnly && !shop.ownedShips.includes(s.id)).map(s => ({ t: "ship", v: s }));
         else if (pack.kind === "legendary") pool = SHIPS.filter(s => s.packOnly && !shop.ownedShips.includes(s.id)).map(s => ({ t: "ship", v: s }));
         else if (pack.kind === "feature") pool = FEATURES.filter(f => !shop.ownedFeatures.includes(f.id)).map(f => ({ t: "feature", v: f }));
+        else if (pack.kind === "pilot") pool = PILOTS.filter(p => !shop.ownedPilots.includes(p.id)).map(p => ({ t: "pilot", v: p }));
         // Meistens etwas Neues, sonst Münzen (mehr bei teureren Packs)
         let reward;
         if (pool.length && Math.random() < 0.82) reward = pool[Math.floor(Math.random() * pool.length)];
         else reward = { t: "coins", v: Math.round(pack.cost * (0.4 + Math.random() * 0.5)) };
         if (reward.t === "ship") { shop.ownedShips.push(reward.v.id); shop.equipped = reward.v.id; this._packReveal = `🎉 Schiff gezogen: <b>${reward.v.name}</b>!`; }
         else if (reward.t === "feature") { shop.ownedFeatures.push(reward.v.id); this._packReveal = `⚡ Feature gezogen: <b>${reward.v.name}</b>! (im Spiel per Knopf nutzen)`; }
+        else if (reward.t === "pilot") { shop.ownedPilots.push(reward.v.id); shop.equippedPilot = reward.v.id; this._packReveal = `🧑‍🚀 Pilot gezogen: <b>${reward.v.name}</b>!`; }
         else { this._coins += reward.v; setCoins(this._coins); this._packReveal = `💰 Diesmal kein neues Teil – dafür <b>+${reward.v} Münzen</b>!`; }
         saveShop(shop); this._showShop();
     }
