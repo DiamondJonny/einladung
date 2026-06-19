@@ -14,14 +14,26 @@ const SHIPS = [
     { id: "stealth", name: "Stealth", price: 50, hull: "#546e7a", accent: "#263238", flame: "#ff5722" },
     { id: "candy", name: "Candy", price: 30, hull: "#f48fb1", accent: "#ec407a", flame: "#ff80ab" },
     { id: "plasma", name: "Plasma", price: 70, hull: "#00e5ff", accent: "#006064", flame: "#18ffff" },
-    { id: "ufo", name: "UFO 🛸 Rundumschuss", price: 1200, hull: "#b388ff", accent: "#7c4dff", flame: "#00e5ff", shape: "ufo" },
-    // ── Premium-Flotte: sehr gut & sehr teuer ──
+    { id: "ufo", name: "UFO 🛸 Rundumschuss", price: 1200, hull: "#b388ff", accent: "#7c4dff", flame: "#00e5ff", shape: "ufo", beams: 4 },
+    // ── Premium-Flotte: sehr gut & sehr teuer (je teurer, desto mehr Strahlen) ──
     { id: "comet", name: "Komet ☄️", price: 800, hull: "#ffd54f", accent: "#ff6f00", flame: "#ffffff" },
     { id: "phantom", name: "Phantom 👻", price: 1000, hull: "#b0bec5", accent: "#37474f", flame: "#eceff1" },
-    { id: "dragon", name: "Sternendrache 🐉", price: 1800, hull: "#ff5252", accent: "#b71c1c", flame: "#ffca28", shape: "ufo" },
-    { id: "void", name: "Leeren-Jäger 🌌", price: 2400, hull: "#7c4dff", accent: "#1a0a4a", flame: "#e040fb", shape: "ufo" },
-    { id: "phoenix", name: "Phönix 🔥", price: 3200, hull: "#ff6e40", accent: "#dd2c00", flame: "#ffd180", shape: "ufo" },
+    { id: "dragon", name: "Sternendrache 🐉", price: 1800, hull: "#ff5252", accent: "#b71c1c", flame: "#ffca28", shape: "ufo", beams: 6 },
+    { id: "void", name: "Leeren-Jäger 🌌", price: 2400, hull: "#7c4dff", accent: "#1a0a4a", flame: "#e040fb", shape: "ufo", beams: 8 },
+    { id: "phoenix", name: "Phönix 🌈🔥", price: 3200, hull: "rainbow", accent: "#dd2c00", flame: "rainbow", shape: "ufo", beams: 10 },
 ];
+
+// Coole Maps (Weltraum-Hintergründe) – nur aus Packs ziehbar
+const MAPS = [
+    { id: "classic", name: "Klassik 🌌", space: "#0a0a1a", star: "#ffffff" },
+    { id: "nebula",  name: "Nebel 💜",   space: "#1a0a2e", star: "#e0b3ff" },
+    { id: "matrix",  name: "Matrix 💚",  space: "#001008", star: "#5bff9d" },
+    { id: "sunset",  name: "Sonnenuntergang 🌅", space: "#2a0a1a", star: "#ffd0a0" },
+    { id: "deepsea", name: "Tiefsee 🌊", space: "#001a2e", star: "#7fd4ff" },
+    { id: "lava",    name: "Lava 🔥",    space: "#2a0d00", star: "#ff8a3d" },
+];
+
+const PACK_COST = 250;
 
 // Repeatable upgrades: each level costs more
 const UPGRADE_DEFS = [
@@ -43,7 +55,7 @@ const SHOP_KEY = "asteroidsShop";
 // korrekten Namen vergeben (in index.html), nicht hier automatisch.
 const COIN_KEY = "points";
 function loadShop() { try { return JSON.parse(localStorage.getItem(SHOP_KEY) || "null"); } catch { return null; } }
-function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null }; }
+function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null, ownedMaps: ["classic"], equippedMap: "classic" }; }
 function saveShop(d) { localStorage.setItem(SHOP_KEY, JSON.stringify(d)); }
 function getCoins() { return parseInt(localStorage.getItem(COIN_KEY) || "0"); }
 function setCoins(n) { localStorage.setItem(COIN_KEY, String(n)); }
@@ -162,6 +174,7 @@ class AsteroidsGame extends HTMLElement {
 
     connectedCallback() {
         this._shop = loadShop() || defaultShop();
+        if (!this._shop.ownedMaps) { this._shop.ownedMaps = ["classic"]; this._shop.equippedMap = "classic"; }
         this._coins = getCoins();
         this._showShop();
     }
@@ -222,8 +235,19 @@ class AsteroidsGame extends HTMLElement {
             <div class="section">⬆️ Upgrades</div>
             <div class="ulist" id="upgrade-list"></div>
           </div>
+          <div>
+            <div class="section">📦 Packs ziehen</div>
+            ${this._packReveal ? `<div style="background:rgba(0,230,118,0.15);border:1px solid #00e676;border-radius:10px;padding:8px 12px;margin-bottom:8px;color:#b9f6ca;font-weight:700">${this._packReveal}</div>` : ""}
+            <button class="play-btn" id="open-pack" ${coins >= PACK_COST ? "" : "disabled"} style="background:linear-gradient(135deg,#ff9800,#e91e63)">📦 Pack öffnen — ${PACK_COST} 💰</button>
+            <div class="play-cost">🎁 Zufällig: cooles Schiff, Map oder Münzen!</div>
+          </div>
+          <div>
+            <div class="section">🗺️ Maps</div>
+            <div class="grid" id="map-grid"></div>
+          </div>
         </div>
       </div>`;
+        this._packReveal = null;
 
         const sr = this.shadowRoot;
         sr.getElementById("close").onclick = () => this.dispatchEvent(new CustomEvent("close-game", { bubbles: true }));
@@ -298,6 +322,49 @@ class AsteroidsGame extends HTMLElement {
             }
             ul.appendChild(card);
         }
+
+        // Pack ziehen
+        const packBtn = sr.getElementById("open-pack");
+        if (packBtn) packBtn.onclick = () => this._openPack();
+
+        // Maps
+        const mgrid = sr.getElementById("map-grid");
+        for (const m of MAPS) {
+            const owned = shop.ownedMaps.includes(m.id);
+            const active = shop.equippedMap === m.id;
+            const card = document.createElement("div");
+            card.className = "card" + (active ? " active" : "") + (!owned ? " locked" : "");
+            const sw = document.createElement("canvas"); sw.width = 44; sw.height = 44; sw.className = "preview";
+            const c = sw.getContext("2d"); c.fillStyle = m.space; c.fillRect(0, 0, 44, 44);
+            c.fillStyle = m.star; for (let k = 0; k < 12; k++) c.fillRect((k * 17) % 44, (k * 11) % 44, 2, 2);
+            card.appendChild(sw);
+            const nm = document.createElement("div"); nm.className = "card-name"; nm.textContent = m.name; card.appendChild(nm);
+            const pr = document.createElement("div"); pr.className = "card-price" + (owned ? " owned" : "");
+            pr.textContent = owned ? "✓" : "📦 Pack"; card.appendChild(pr);
+            if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = "AKTIV"; card.appendChild(b); }
+            if (owned) card.onclick = () => { shop.equippedMap = m.id; saveShop(shop); this._showShop(); };
+            mgrid.appendChild(card);
+        }
+    }
+
+    // Brawl-Stars-Style Pack: zufällig ein Schiff, eine Map oder Münzen
+    _openPack() {
+        const shop = this._shop;
+        if (this._coins < PACK_COST) return;
+        this._coins -= PACK_COST; setCoins(this._coins);
+        const lockedShips = SHIPS.filter(s => !shop.ownedShips.includes(s.id));
+        const lockedMaps = MAPS.filter(m => !shop.ownedMaps.includes(m.id));
+        const pool = [];
+        lockedShips.forEach(s => pool.push({ t: "ship", v: s }));
+        lockedMaps.forEach(m => pool.push({ t: "map", v: m }));
+        // Etwas Glück: meistens etwas Neues, sonst Münzen
+        let reward;
+        if (pool.length && Math.random() < 0.8) reward = pool[Math.floor(Math.random() * pool.length)];
+        else reward = { t: "coins", v: 100 + Math.floor(Math.random() * 4) * 50 };
+        if (reward.t === "ship") { shop.ownedShips.push(reward.v.id); this._packReveal = `🎉 Neues Schiff gezogen: <b>${reward.v.name}</b>!`; }
+        else if (reward.t === "map") { shop.ownedMaps.push(reward.v.id); this._packReveal = `🗺️ Neue Map gezogen: <b>${reward.v.name}</b>!`; }
+        else { this._coins += reward.v; setCoins(this._coins); this._packReveal = `💰 Glück gehabt: <b>+${reward.v} Münzen</b>!`; }
+        saveShop(shop); this._showShop();
     }
 
     _drawPreview(ctx, skin, cx, cy, scale) {
@@ -366,13 +433,14 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         const sr = this.shadowRoot;
         const cv = sr.getElementById("c"), ctx = cv.getContext("2d");
         const coinEl = sr.getElementById("cd");
+        const curMap = MAPS.find(m => m.id === this._shop.equippedMap) || MAPS[0];
         const W = cv.width, H = cv.height;
         const ctrl = new AbortController(), sig = { signal: ctrl.signal };
 
         // Infinite world state
         let cam = { x: 0, y: 0 }; // camera center
         let ship = { x: 0, y: 0, angle: -Math.PI / 2, vx: 0, vy: 0 };
-        let bullets = [], asteroids = [], particles = [], pickups = [];
+        let bullets = [], asteroids = [], particles = [];
         let keys = { left: false, right: false, up: false, fire: false };
         let fireCooldown = 0, score = 0, alive = true, wave = 1;
         let lives = fx.lives, invincible = 0, totalKills = 0;
@@ -465,8 +533,8 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 const bvx = cos * fx.bulletSpeed + ship.vx * 0.3;
                 const bvy = sin * fx.bulletSpeed + ship.vy * 0.3;
                 if (skin.shape === "ufo") {
-                    // Spezialfähigkeit: Rundumschuss – startet mit 4 Strahlen, +1 pro Doppelschuss-Level
-                    const N = 4 + (fx.doubleLevel || 0);
+                    // Rundumschuss: Basis-Strahlen je nach Schiff (teurer = mehr), +2 pro Doppelschuss-Level
+                    const N = (skin.beams || 4) + (fx.doubleLevel || 0) * 2;
                     for (let k = 0; k < N; k++) {
                         const a = ship.angle + (k * 2 * Math.PI / N);
                         const c = Math.cos(a), s = Math.sin(a);
@@ -493,14 +561,17 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                         bullets.splice(i, 1);
                         const pts = (4 - a.size) * 10;
                         score += pts;
-                        // Brocken lässt manchmal 1–2 einsammelbare Münzen in der Galaxie fallen
-                        if (Math.random() < 0.4) {
-                            const num = Math.random() < 0.3 ? 2 : 1;
-                            for (let q = 0; q < num; q++) pickups.push({ x: a.x, y: a.y, vx: Math.random()*40-20, vy: Math.random()*40-20, life: 9 });
-                        }
+                        // Punkt direkt gutschreiben (kein Aufsammeln)
+                        this._coins += Math.ceil(pts / 10); setCoins(this._coins); coinEl.textContent = this._coins;
                         totalKills++;
                         spawnParticles(a.x, a.y, 6);
-                        if (a.size > 1) { spawnAsteroid(a.size-1, a.x, a.y); spawnAsteroid(a.size-1, a.x, a.y); }
+                        // Zwei neue Brocken spawnen – irgendwo, aber NICHT auf dem Spieler
+                        if (asteroids.length < 16) {
+                            for (let q = 0; q < 2; q++) {
+                                const ang = Math.random() * Math.PI * 2, dist = 280 + Math.random() * 260;
+                                spawnAsteroid(1 + Math.floor(Math.random() * 3), ship.x + Math.cos(ang) * dist, ship.y + Math.sin(ang) * dist);
+                            }
+                        }
                         asteroids.splice(j, 1);
                         break;
                     }
@@ -534,32 +605,24 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 if (p.life <= 0) particles.splice(i, 1);
             }
 
-            // Münzen einsammeln (durch Drüberfliegen)
-            for (let i = pickups.length - 1; i >= 0; i--) {
-                const pk = pickups[i];
-                pk.x += pk.vx * dt; pk.y += pk.vy * dt; pk.life -= dt;
-                if (Math.hypot(pk.x - ship.x, pk.y - ship.y) < 20) {
-                    this._coins += 1; setCoins(this._coins); coinEl.textContent = this._coins;
-                    pickups.splice(i, 1); continue;
-                }
-                if (pk.life <= 0) pickups.splice(i, 1);
-            }
         };
 
         const draw = () => {
-            ctx.fillStyle = "#0a0a1a"; ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = curMap.space; ctx.fillRect(0, 0, W, H);
             const ox = W/2 - cam.x, oy = H/2 - cam.y;
 
-            // Stars (tile them)
+            // Stars (tile them) – Farbe je nach Map
             const t = performance.now();
+            ctx.fillStyle = curMap.star;
             for (const s of stars) {
                 // Parallax: stars move slower than world
                 const sx = ((s.x * 0.3 - cam.x * 0.3 + ox) % W + W) % W;
                 const sy = ((s.y * 0.3 - cam.y * 0.3 + oy) % H + H) % H;
                 const a = 0.3 + 0.4 * Math.sin(t/1000 + s.bright * 10);
-                ctx.fillStyle = `rgba(255,255,255,${a})`;
+                ctx.globalAlpha = a;
                 ctx.fillRect(sx, sy, s.size, s.size);
             }
+            ctx.globalAlpha = 1;
 
             // Asteroids
             ctx.strokeStyle = "#aaa"; ctx.lineWidth = 1.5;
@@ -585,15 +648,6 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 ctx.shadowBlur = 0;
             }
 
-            // Münzen (Drops)
-            for (const pk of pickups) {
-                const px = pk.x + ox, py = pk.y + oy;
-                if (px < -12 || px > W+12 || py < -12 || py > H+12) continue;
-                ctx.fillStyle = "#ffd54f"; ctx.shadowColor = "rgba(255,213,79,0.6)"; ctx.shadowBlur = 8;
-                ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.fill();
-                ctx.shadowBlur = 0;
-                ctx.strokeStyle = "#f9a825"; ctx.lineWidth = 2; ctx.stroke();
-            }
 
             // Ship
             if (alive) {
