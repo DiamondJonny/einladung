@@ -21,6 +21,10 @@ const SHIPS = [
     { id: "dragon", name: "Sternendrache 🐉", price: 1800, hull: "#ff5252", accent: "#b71c1c", flame: "#ffca28", shape: "ufo", beams: 6 },
     { id: "void", name: "Leeren-Jäger 🌌", price: 2400, hull: "#7c4dff", accent: "#1a0a4a", flame: "#e040fb", shape: "ufo", beams: 8 },
     { id: "phoenix", name: "Phönix 🌈🔥", price: 3200, hull: "rainbow", accent: "#dd2c00", flame: "rainbow", shape: "ufo", beams: 10 },
+    // ── Legendär: NUR aus dem Legendär-Pack ziehbar (nicht kaufbar) ──
+    { id: "king",      name: "Kosmos-König 👑", packOnly: true, hull: "rainbow", accent: "#ffca28", flame: "rainbow", shape: "ufo", beams: 12 },
+    { id: "blackhole", name: "Schwarzes Loch 🕳️", packOnly: true, hull: "#311b92", accent: "#000000", flame: "#7c4dff", shape: "ufo", beams: 14 },
+    { id: "guardian",  name: "Galaxie-Wächter 🛡️", packOnly: true, hull: "#00e5ff", accent: "#006064", flame: "#18ffff", shape: "ufo", beams: 16 },
 ];
 
 // Coole Maps (Weltraum-Hintergründe) – im Shop kaufbar (nicht aus Packs)
@@ -40,7 +44,12 @@ const FEATURES = [
     { id: "bomb",     name: "Bombe 💥",   icon: "💥", cooldown: 16, desc: "Zerstört Brocken in der Nähe" },
 ];
 
-const PACK_COST = 250;
+// Verschiedene Packs für verschiedene Sachen
+const PACKS = [
+    { id: "ship",    name: "🚀 Schiff-Pack",    cost: 250, kind: "ship",      desc: "Zufälliges normales Schiff" },
+    { id: "feature", name: "⚡ Feature-Pack",   cost: 250, kind: "feature",   desc: "Zufälliges Feature (Teleport …)" },
+    { id: "legend",  name: "🌟 Legendär-Pack",  cost: 700, kind: "legendary", desc: "Seltenes Schiff – nur hier!" },
+];
 
 // Repeatable upgrades: each level costs more
 const UPGRADE_DEFS = [
@@ -246,8 +255,7 @@ class AsteroidsGame extends HTMLElement {
           <div>
             <div class="section">📦 Packs ziehen</div>
             ${this._packReveal ? `<div style="background:rgba(0,230,118,0.15);border:1px solid #00e676;border-radius:10px;padding:8px 12px;margin-bottom:8px;color:#b9f6ca;font-weight:700">${this._packReveal}</div>` : ""}
-            <button class="play-btn" id="open-pack" ${coins >= PACK_COST ? "" : "disabled"} style="background:linear-gradient(135deg,#ff9800,#e91e63)">📦 Pack öffnen — ${PACK_COST} 💰</button>
-            <div class="play-cost">🎁 Zufällig: cooles Schiff, Feature (z. B. Teleport) oder Münzen!</div>
+            ${PACKS.map(p => `<button class="play-btn pack-btn" data-pack="${p.id}" ${coins >= p.cost ? "" : "disabled"} style="background:linear-gradient(135deg,#ff9800,#e91e63);margin-bottom:6px">${p.name} — ${p.cost} 💰<br><small style="font-weight:400;opacity:.85">${p.desc}</small></button>`).join("")}
           </div>
           <div>
             <div class="section">🗺️ Maps</div>
@@ -268,18 +276,18 @@ class AsteroidsGame extends HTMLElement {
         for (const s of allShips) {
             const owned = s.id === "custom" || shop.ownedShips.includes(s.id);
             const active = shop.equipped === s.id;
-            const canBuy = !owned && coins >= s.price;
+            const canBuy = !owned && !s.packOnly && coins >= s.price;
             const card = document.createElement("div");
             card.className = "card" + (active ? " active" : "") + (!owned && !canBuy ? " locked" : "");
             const cvs = document.createElement("canvas"); cvs.width = 44; cvs.height = 44; cvs.className = "preview";
             this._drawPreview(cvs.getContext("2d"), s); card.appendChild(cvs);
             const nm = document.createElement("div"); nm.className = "card-name"; nm.textContent = s.name; card.appendChild(nm);
             const pr = document.createElement("div"); pr.className = "card-price" + (owned ? " owned" : "");
-            pr.textContent = owned ? "✓" : `💰 ${s.price}`; card.appendChild(pr);
+            pr.textContent = owned ? "✓" : (s.packOnly ? "🌟 nur Pack" : `💰 ${s.price}`); card.appendChild(pr);
             if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = "AKTIV"; card.appendChild(b); }
             card.onclick = () => {
                 if (owned && !active) { shop.equipped = s.id; saveShop(shop); this._showShop(); }
-                else if (!owned && coins >= s.price) {
+                else if (!owned && !s.packOnly && coins >= s.price) {
                     this._coins -= s.price; setCoins(this._coins);
                     shop.ownedShips.push(s.id); shop.equipped = s.id; saveShop(shop); this._showShop();
                 }
@@ -331,9 +339,8 @@ class AsteroidsGame extends HTMLElement {
             ul.appendChild(card);
         }
 
-        // Pack ziehen
-        const packBtn = sr.getElementById("open-pack");
-        if (packBtn) packBtn.onclick = () => this._openPack();
+        // Packs ziehen (verschiedene Typen)
+        sr.querySelectorAll(".pack-btn").forEach(b => { b.onclick = () => this._openPack(b.dataset.pack); });
 
         // Maps
         const mgrid = sr.getElementById("map-grid");
@@ -362,23 +369,23 @@ class AsteroidsGame extends HTMLElement {
         }
     }
 
-    // Brawl-Stars-Style Pack: zufällig ein Schiff, eine Map oder Münzen
-    _openPack() {
+    // Brawl-Stars-Style Packs: je nach Typ Schiff / Feature / legendäres Schiff – sonst Münzen
+    _openPack(packId) {
+        const pack = PACKS.find(p => p.id === packId);
+        if (!pack || this._coins < pack.cost) return;
         const shop = this._shop;
-        if (this._coins < PACK_COST) return;
-        this._coins -= PACK_COST; setCoins(this._coins);
-        const lockedShips = SHIPS.filter(s => !shop.ownedShips.includes(s.id));
-        const lockedFeatures = FEATURES.filter(f => !shop.ownedFeatures.includes(f.id));
-        const pool = [];
-        lockedShips.forEach(s => pool.push({ t: "ship", v: s }));
-        lockedFeatures.forEach(f => pool.push({ t: "feature", v: f }));
-        // Etwas Glück: meistens etwas Neues, sonst Münzen
+        this._coins -= pack.cost; setCoins(this._coins);
+        let pool = [];
+        if (pack.kind === "ship") pool = SHIPS.filter(s => !s.packOnly && !shop.ownedShips.includes(s.id)).map(s => ({ t: "ship", v: s }));
+        else if (pack.kind === "legendary") pool = SHIPS.filter(s => s.packOnly && !shop.ownedShips.includes(s.id)).map(s => ({ t: "ship", v: s }));
+        else if (pack.kind === "feature") pool = FEATURES.filter(f => !shop.ownedFeatures.includes(f.id)).map(f => ({ t: "feature", v: f }));
+        // Meistens etwas Neues, sonst Münzen (mehr bei teureren Packs)
         let reward;
-        if (pool.length && Math.random() < 0.8) reward = pool[Math.floor(Math.random() * pool.length)];
-        else reward = { t: "coins", v: 100 + Math.floor(Math.random() * 4) * 50 };
-        if (reward.t === "ship") { shop.ownedShips.push(reward.v.id); this._packReveal = `🎉 Neues Schiff gezogen: <b>${reward.v.name}</b>!`; }
-        else if (reward.t === "feature") { shop.ownedFeatures.push(reward.v.id); this._packReveal = `⚡ Neues Feature gezogen: <b>${reward.v.name}</b>! (im Spiel per Knopf nutzen)`; }
-        else { this._coins += reward.v; setCoins(this._coins); this._packReveal = `💰 Glück gehabt: <b>+${reward.v} Münzen</b>!`; }
+        if (pool.length && Math.random() < 0.82) reward = pool[Math.floor(Math.random() * pool.length)];
+        else reward = { t: "coins", v: Math.round(pack.cost * (0.4 + Math.random() * 0.5)) };
+        if (reward.t === "ship") { shop.ownedShips.push(reward.v.id); shop.equipped = reward.v.id; this._packReveal = `🎉 Schiff gezogen: <b>${reward.v.name}</b>!`; }
+        else if (reward.t === "feature") { shop.ownedFeatures.push(reward.v.id); this._packReveal = `⚡ Feature gezogen: <b>${reward.v.name}</b>! (im Spiel per Knopf nutzen)`; }
+        else { this._coins += reward.v; setCoins(this._coins); this._packReveal = `💰 Diesmal kein neues Teil – dafür <b>+${reward.v} Münzen</b>!`; }
         saveShop(shop); this._showShop();
     }
 
