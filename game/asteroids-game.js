@@ -50,6 +50,9 @@ const SHIPS = [
     { id: "king",      name: "Kosmos-König 👑", packOnly: true, hull: "rainbow", accent: "#ffca28", flame: "rainbow", shape: "ufo", beams: 12 },
     { id: "blackhole", name: "Schwarzes Loch 🕳️", packOnly: true, hull: "#311b92", accent: "#000000", flame: "#7c4dff", shape: "ufo", beams: 14 },
     { id: "guardian",  name: "Galaxie-Wächter 🛡️", packOnly: true, hull: "#00e5ff", accent: "#006064", flame: "#18ffff", shape: "ufo", beams: 16 },
+    // ── Superlegendär: die allerbesten – nur aus dem Mega-Pack ──
+    { id: "omega",    name: "Omega 🛸 (Superlegendär)", packOnly: true, hull: "rainbow", accent: "#ffd700", flame: "rainbow", shape: "ufo", beams: 18, scale: 1.5 },
+    { id: "infinity", name: "Unendlichkeit ♾️ (Superlegendär)", packOnly: true, hull: "rainbow", accent: "#00e5ff", flame: "rainbow", shape: "ufo", beams: 22, scale: 1.8 },
 ];
 
 // Coole Maps (Weltraum-Hintergründe) – im Shop kaufbar (nicht aus Packs)
@@ -96,7 +99,7 @@ const PACKS = [
     { id: "ship",    name: "🚀 Schiff-Pack",    cost: 250, kind: "ship",      desc: "Zufälliges normales Schiff" },
     { id: "feature", name: "⚡ Feature-Pack",   cost: 250, kind: "feature",   desc: "Zufälliges Feature (Teleport …)" },
     { id: "pilot",   name: "🧑‍🚀 Piloten-Pack", cost: 200, kind: "pilot",     desc: "Zufälliger Pilot fürs Cockpit" },
-    { id: "legend",  name: "🌟 Legendär-Pack",  cost: 700, kind: "legendary", desc: "Seltenes Schiff – nur hier!" },
+    { id: "legend",  name: "👑 Mega-Pack",       cost: 2500, kind: "legendary", desc: "Nur Top-Schiffe! Sehr teuer, aber nur Gutes." },
 ];
 
 // Repeatable upgrades: each level costs more
