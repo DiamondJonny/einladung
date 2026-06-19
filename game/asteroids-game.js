@@ -471,36 +471,59 @@ class AsteroidsGame extends HTMLElement {
         this._playPackAnim(icon, label, () => this._showShop());
     }
 
-    // Greifarm-Automat: Klaue fährt runter in die Kiste und zieht den Gewinn
+    // Lootbox-Reveal: Kiste lädt mit rotierenden Lichtstrahlen auf, platzt mit Konfetti, Gewinn ploppt heraus
     _playPackAnim(icon, label, done) {
         const ov = document.createElement("div");
         ov.innerHTML = `<style>
-          .pa{position:fixed;inset:0;z-index:3000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(5,5,20,.94);overflow:hidden;font-family:'Segoe UI',sans-serif}
-          .pa-rope{width:4px;height:60px;background:#9aa;animation:pa-rope 1.3s ease-in-out forwards;transform-origin:top}
-          .pa-claw{font-size:52px;margin-top:-10px;animation:pa-drop 1.3s ease-in-out forwards}
-          @keyframes pa-rope{0%{height:30px}45%{height:230px}55%{height:230px}100%{height:120px}}
-          @keyframes pa-drop{0%{transform:translateY(0)}45%{transform:translateY(200px)}55%{transform:translateY(200px)}100%{transform:translateY(90px)}}
-          .pa-box{font-size:104px;margin-top:30px;animation:pa-shake .35s ease .5s 2}
-          @keyframes pa-shake{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-9px) rotate(-4deg)}75%{transform:translateX(9px) rotate(4deg)}}
-          .pa-prize{position:absolute;text-align:center;opacity:0;transform:scale(.3);animation:pa-prize .55s cubic-bezier(.2,1.4,.4,1) 1.35s forwards}
-          .pa-prize .em{font-size:88px}
-          .pa-prize .lbl{display:block;color:#fff;font-weight:800;font-size:22px;margin-top:8px;text-shadow:0 2px 8px #000}
-          .pa-tap{position:absolute;bottom:30px;color:#cfd3ff;font-weight:700;opacity:0;animation:pa-fade .4s ease 1.9s forwards}
+          .pa{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:'Segoe UI',sans-serif;
+              background:radial-gradient(circle at 50% 45%, rgba(70,35,140,.96), rgba(5,5,20,.98))}
+          .pa-stage{position:relative;width:320px;height:320px;display:flex;align-items:center;justify-content:center}
+          .pa-rays{position:absolute;width:560px;height:560px;border-radius:50%;opacity:0;
+              background:repeating-conic-gradient(rgba(255,255,255,.16) 0deg 10deg, rgba(255,255,255,0) 10deg 26deg);
+              animation:pa-spin 7s linear infinite, pa-rayin .6s ease forwards}
+          @keyframes pa-spin{to{transform:rotate(360deg)}}
+          @keyframes pa-rayin{to{opacity:1}}
+          .pa-box{position:absolute;font-size:130px;animation:pa-build 1.3s ease-in-out forwards;filter:drop-shadow(0 0 18px rgba(255,255,255,.4))}
+          @keyframes pa-build{0%{transform:scale(.6) rotate(0)}20%{transform:scale(1) rotate(-7deg)}40%{transform:scale(1.06) rotate(7deg)}60%{transform:scale(1) rotate(-9deg)}80%{transform:scale(1.12) rotate(9deg)}100%{transform:scale(0) rotate(0);opacity:0}}
+          .pa-prize{position:absolute;text-align:center;opacity:0;transform:scale(.2)}
+          .pa-prize.show{animation:pa-pop .65s cubic-bezier(.2,1.6,.35,1) forwards}
+          @keyframes pa-pop{to{opacity:1;transform:scale(1)}}
+          .pa-prize .em{font-size:120px;filter:drop-shadow(0 0 30px var(--glow,#ffd54f))}
+          .pa-prize .lbl{display:block;color:#fff;font-weight:800;font-size:26px;margin-top:12px;text-shadow:0 2px 12px #000}
+          .pa-tap{position:absolute;bottom:34px;color:#cfd3ff;font-weight:700;opacity:0;animation:pa-fade .4s ease 2.1s forwards}
           @keyframes pa-fade{to{opacity:1}}
+          .pa-conf{position:absolute;width:13px;height:13px;border-radius:3px}
         </style>
         <div class="pa">
-          <div class="pa-rope"></div>
-          <div class="pa-claw">🦾</div>
-          <div class="pa-box">📦</div>
-          <div class="pa-prize"><div class="em">${icon}</div><span class="lbl">${label}</span></div>
+          <div class="pa-stage" id="pa-stage">
+            <div class="pa-rays"></div>
+            <div class="pa-box">📦</div>
+            <div class="pa-prize" id="pa-prize" style="--glow:${this._glowFor ? this._glowFor : '#ffd54f'}"><div class="em">${icon}</div><span class="lbl">${label}</span></div>
+          </div>
           <div class="pa-tap">Tippen zum Schließen</div>
         </div>`;
-        const root = this.shadowRoot;
-        root.appendChild(ov);
+        this.shadowRoot.appendChild(ov);
+        const stage = ov.querySelector("#pa-stage");
+        const prize = ov.querySelector("#pa-prize");
+        const colors = ['#ff4f9a', '#7c5cff', '#ffb23e', '#5be3a0', '#48c6ff', '#ff7b7b'];
+        const burst = setTimeout(() => {
+            prize.classList.add("show");
+            for (let i = 0; i < 28; i++) {
+                const c = document.createElement("div"); c.className = "pa-conf";
+                c.style.background = colors[i % colors.length];
+                stage.appendChild(c);
+                const ang = (i / 28) * Math.PI * 2, dist = 130 + Math.random() * 130;
+                c.animate(
+                    [{ transform: 'translate(0,0) scale(1)', opacity: 1 },
+                     { transform: `translate(${Math.cos(ang) * dist}px,${Math.sin(ang) * dist}px) scale(.3) rotate(${Math.random() * 720}deg)`, opacity: 0 }],
+                    { duration: 950, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' }
+                );
+            }
+        }, 1300);
         let closed = false;
-        const finish = () => { if (closed) return; closed = true; clearTimeout(tm); ov.remove(); done(); };
-        const tm = setTimeout(finish, 3200);
-        ov.querySelector(".pa").addEventListener("click", () => { if (Date.now()) finish(); });
+        const finish = () => { if (closed) return; closed = true; clearTimeout(tm); clearTimeout(burst); ov.remove(); done(); };
+        const tm = setTimeout(finish, 3600);
+        ov.querySelector(".pa").addEventListener("click", finish);
     }
 
     _drawPreview(ctx, skin, cx, cy, scale) {
