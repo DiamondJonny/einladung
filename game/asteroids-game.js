@@ -678,8 +678,8 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                         bullets.splice(i, 1);
                         const pts = (4 - a.size) * 10;
                         score += pts;
-                        // Punkt direkt gutschreiben (kein Aufsammeln)
-                        this._coins += Math.ceil(pts / 10); setCoins(this._coins); coinEl.textContent = this._coins;
+                        // Punkt direkt gutschreiben (kein Aufsammeln) – bewusst sparsam, damit man nicht zu schnell alles hat
+                        this._coins += 1; setCoins(this._coins); coinEl.textContent = this._coins;
                         totalKills++;
                         spawnParticles(a.x, a.y, 6);
                         // Zwei neue Brocken spawnen – irgendwo, aber NICHT auf dem Spieler
