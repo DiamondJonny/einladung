@@ -4,7 +4,7 @@
 // ── Shop Data ─────────────────────────────────────────────────────────────────
 
 const SHIPS = [
-    { id: "default", name: "Starter", price: 0, hull: "#4dd0e1", accent: "#00838f", flame: "#FF6D00" },
+    { id: "default", name: "Rakete 🚀", price: 0, hull: "#4dd0e1", accent: "#00838f", flame: "#FF6D00" },
     { id: "fire", name: "Feuerfalke", price: 20, hull: "#ef5350", accent: "#b71c1c", flame: "#ffeb3b" },
     { id: "ice", name: "Eispfeil", price: 20, hull: "#81d4fa", accent: "#0277bd", flame: "#4fc3f7" },
     { id: "gold", name: "Goldadler", price: 40, hull: "#ffd54f", accent: "#f9a825", flame: "#ff6f00" },
@@ -21,6 +21,14 @@ const SHIPS = [
     { id: "dragon", name: "Sternendrache 🐉", price: 1800, hull: "#ff5252", accent: "#b71c1c", flame: "#ffca28", shape: "ufo", beams: 6 },
     { id: "void", name: "Leeren-Jäger 🌌", price: 2400, hull: "#7c4dff", accent: "#1a0a4a", flame: "#e040fb", shape: "ufo", beams: 8 },
     { id: "phoenix", name: "Phönix 🌈🔥", price: 3200, hull: "rainbow", accent: "#dd2c00", flame: "rainbow", shape: "ufo", beams: 10 },
+    // ── Space Shuttles (günstig) ──
+    { id: "shuttle",  name: "Space Shuttle 🚀", price: 30, hull: "#eceff1", accent: "#90a4ae", flame: "#ff7043" },
+    { id: "shuttle2", name: "Mini-Shuttle 🛰️", price: 45, hull: "#b3e5fc", accent: "#0288d1", flame: "#ffd54f" },
+    // ── Riesen-Raumschiffe (groß & teuer) ──
+    { id: "freighter",  name: "Frachter 🚛 (Riesig)", price: 1500, hull: "#a1887f", accent: "#4e342e", flame: "#ffab40", scale: 1.5 },
+    { id: "battleship", name: "Schlachtschiff ⚓ (Riesig)", price: 3000, hull: "#607d8b", accent: "#263238", flame: "#ff5252", shape: "ufo", beams: 8, scale: 1.7 },
+    { id: "titan",      name: "Titan-Kreuzer 🛡️ (Riesig)", price: 5000, hull: "#9fa8da", accent: "#1a237e", flame: "#7c4dff", shape: "ufo", beams: 12, scale: 1.9 },
+    { id: "mothership", name: "Mutterschiff 🛸👑 (MEGA)", price: 8000, hull: "rainbow", accent: "#311b92", flame: "rainbow", shape: "ufo", beams: 16, scale: 2.3 },
     // ── Legendär: NUR aus dem Legendär-Pack ziehbar (nicht kaufbar) ──
     { id: "king",      name: "Kosmos-König 👑", packOnly: true, hull: "rainbow", accent: "#ffca28", flame: "rainbow", shape: "ufo", beams: 12 },
     { id: "blackhole", name: "Schwarzes Loch 🕳️", packOnly: true, hull: "#311b92", accent: "#000000", flame: "#7c4dff", shape: "ufo", beams: 14 },
@@ -431,15 +439,16 @@ class AsteroidsGame extends HTMLElement {
         // Meistens etwas Neues, sonst Münzen (mehr bei teureren Packs)
         let reward;
         if (pool.length && Math.random() < 0.82) reward = pool[Math.floor(Math.random() * pool.length)];
+        else if (Math.random() < 0.15) reward = { t: "coins", v: 1000, jackpot: true };  // seltener Jackpot
         else reward = { t: "coins", v: Math.round(pack.cost * (0.4 + Math.random() * 0.5)) };
         if (reward.t === "ship") { shop.ownedShips.push(reward.v.id); shop.equipped = reward.v.id; this._packReveal = `🎉 Schiff gezogen: <b>${reward.v.name}</b>!`; }
         else if (reward.t === "feature") { shop.ownedFeatures.push(reward.v.id); this._packReveal = `⚡ Feature gezogen: <b>${reward.v.name}</b>! (im Spiel per Knopf nutzen)`; }
         else if (reward.t === "pilot") { shop.ownedPilots.push(reward.v.id); shop.equippedPilot = reward.v.id; this._packReveal = `🧑‍🚀 Pilot gezogen: <b>${reward.v.name}</b>!`; }
-        else { this._coins += reward.v; setCoins(this._coins); this._packReveal = `💰 Diesmal kein neues Teil – dafür <b>+${reward.v} Münzen</b>!`; }
+        else { this._coins += reward.v; setCoins(this._coins); this._packReveal = reward.jackpot ? `🎰 <b>JACKPOT! +${reward.v} Taler!</b> 🤑` : `💰 Diesmal kein neues Teil – dafür <b>+${reward.v} Münzen</b>!`; }
         saveShop(shop);
         // Greifarm-Automat-Animation, danach Shop mit Gewinn-Anzeige
-        const icon = reward.t === "coins" ? "💰" : reward.t === "feature" ? reward.v.icon : reward.t === "pilot" ? reward.v.emoji : "🚀";
-        const label = reward.t === "coins" ? `+${reward.v} Münzen` : reward.v.name;
+        const icon = reward.t === "coins" ? (reward.jackpot ? "🎰" : "💰") : reward.t === "feature" ? reward.v.icon : reward.t === "pilot" ? reward.v.emoji : "🚀";
+        const label = reward.t === "coins" ? (reward.jackpot ? `JACKPOT! +${reward.v}` : `+${reward.v} Münzen`) : reward.v.name;
         this._playPackAnim(icon, label, () => this._showShop());
     }
 
@@ -477,6 +486,7 @@ class AsteroidsGame extends HTMLElement {
 
     _drawPreview(ctx, skin, cx, cy, scale) {
         cx = cx || 22; cy = cy || 22; scale = scale || 1;
+        scale *= Math.min(skin.scale || 1, 1.25);
         ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale);
         const t = performance.now() / 300;
         const hull = skin.hull === "rainbow" ? `hsl(${(t*60)%360},80%,60%)` : skin.hull;
@@ -807,7 +817,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 const blink = invincible > 0 && Math.floor(t/100) % 2;
                 if (!blink) {
                     const sx = ship.x + ox, sy = ship.y + oy;
-                    ctx.save(); ctx.translate(sx, sy); ctx.rotate(ship.angle);
+                    ctx.save(); ctx.translate(sx, sy); ctx.rotate(ship.angle); ctx.scale(skin.scale || 1, skin.scale || 1);
                     const tt = t / 300;
                     const hullC = skin.hull === "rainbow" ? `hsl(${(tt*60)%360},80%,60%)` : skin.hull;
                     ctx.strokeStyle = hullC; ctx.lineWidth = 2.5;
