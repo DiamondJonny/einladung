@@ -43,6 +43,7 @@ const MAPS = [
     { id: "sunset",  name: "Sonnenuntergang 🌅", space: "#2a0a1a", star: "#ffd0a0", price: 200 },
     { id: "deepsea", name: "Tiefsee 🌊", space: "#001a2e", star: "#7fd4ff", price: 200 },
     { id: "lava",    name: "Lava 🔥",    space: "#2a0d00", star: "#ff8a3d", price: 250 },
+    { id: "kampfzone", name: "Kampfzone ⚔️ (Gegner!)", space: "#1a0008", star: "#ff6b6b", price: 300, battle: true },
 ];
 
 // Features (Spezial-Fähigkeiten im Spiel) – aus Packs ziehbar, im Spiel per Knopf aktivierbar
