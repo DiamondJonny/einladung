@@ -124,6 +124,8 @@ function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, eq
 function saveShop(d) { localStorage.setItem("asteroidsShop__" + acct(), JSON.stringify(d)); }
 function getCoins() { return parseInt(localStorage.getItem("points__" + acct()) || "0"); }
 function setCoins(n) { localStorage.setItem("points__" + acct(), String(n)); }
+function getRecords() { try { return JSON.parse(localStorage.getItem("records__" + acct()) || "{}"); } catch (e) { return {}; } }
+function saveRecords(r) { localStorage.setItem("records__" + acct(), JSON.stringify(r)); }
 
 function getUpgradePrice(def, level) {
     if (def.maxLevel && level >= def.maxLevel) return Infinity;
@@ -187,7 +189,11 @@ const SHOP_CSS = `
 .stats-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
 .chip span { color: #4fc3f7; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+.tabbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 0; }
+.tab { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cfd3ff; border-radius: 999px; padding: 7px 13px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.tab:hover { border-color: rgba(255,255,255,0.4); }
+.tab.on { background: linear-gradient(135deg, #7c5cff, #ff4f9a); color: #fff; border-color: transparent; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
 .card {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   padding: 8px 4px; border-radius: 10px; cursor: pointer;
@@ -201,7 +207,8 @@ const SHOP_CSS = `
 .card-price { font-size: 0.68rem; color: #ffd700; font-weight: 600; }
 .card-price.owned { color: #00e676; }
 .badge { position: absolute; top: 3px; right: 3px; font-size: 0.55rem; background: #00e676; color: #1b5e20; border-radius: 3px; padding: 1px 3px; font-weight: 700; }
-.preview { width: 44px; height: 44px; }
+.preview { width: 54px; height: 54px; }
+.card-name { font-size: 0.78rem; }
 .ulist { display: flex; flex-direction: column; gap: 6px; }
 .ucard {
   display: flex; align-items: center; gap: 10px;
@@ -260,6 +267,69 @@ class AsteroidsGame extends HTMLElement {
         const canPlay = true; // always free to play
         const custom = shop.customShip || { hull: "#4dd0e1", accent: "#00838f", flame: "#FF6D00" };
 
+        const tab = this._tab || "play";
+        const recs = getRecords();
+        const TABS = [
+            { id: "play", label: "▶ Spielen" }, { id: "ships", label: "🚀 Schiffe" },
+            { id: "pilots", label: "🧑‍🚀 Piloten" }, { id: "maps", label: "🗺️ Maps" },
+            { id: "upgrades", label: "⬆️ Upgrades" }, { id: "packs", label: "📦 Packs" },
+            { id: "records", label: "🏆 Erfolge" },
+        ];
+        let content = "";
+        if (tab === "play") {
+            content = `<button class="play-btn" id="play">▶ Spielen</button>
+              <div class="play-cost">Münzen verdienst du beim Spielen 💰</div>
+              <div class="section">📊 Dein Setup</div>
+              <div class="stats-row">
+                <div class="chip">Leben: <span>${effects.lives}</span></div>
+                <div class="chip">Antrieb: <span>${effects.thrustPower}</span></div>
+                <div class="chip">Feuerrate: <span>${Math.round(1/effects.fireCooldown)}/s</span></div>
+                <div class="chip">Doppel: <span>${effects.doubleShot?"Ja":"Nein"}</span></div>
+              </div>`;
+        } else if (tab === "ships") {
+            content = `<div class="section">🚀 Raumschiffe</div><div class="grid" id="ship-grid"></div>
+              <div class="section">🎨 Eigenes Schiff bauen</div>
+              <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <div class="custom-row"><span class="color-label">Rumpf</span><input type="color" class="color-pick" id="c-hull" value="${custom.hull === 'rainbow' ? '#4dd0e1' : custom.hull}"></div>
+                  <div class="custom-row"><span class="color-label">Akzent</span><input type="color" class="color-pick" id="c-accent" value="${custom.accent}"></div>
+                  <div class="custom-row"><span class="color-label">Flamme</span><input type="color" class="color-pick" id="c-flame" value="${custom.flame === 'rainbow' ? '#FF6D00' : custom.flame}"></div>
+                </div>
+                <canvas class="custom-preview" id="c-preview" width="64" height="64"></canvas>
+                <button class="custom-save" id="c-save">Speichern & Auswählen</button>
+              </div>`;
+        } else if (tab === "pilots") {
+            content = `<div class="section">🧑‍🚀 Piloten (sitzen im Raumschiff)</div><div class="grid" id="pilot-grid"></div>`;
+        } else if (tab === "maps") {
+            content = `<div class="section">🗺️ Maps (Level & Hintergrund)</div><div class="grid" id="map-grid"></div>`;
+        } else if (tab === "upgrades") {
+            content = `<div class="section">⬆️ Upgrades</div><div class="ulist" id="upgrade-list"></div>`;
+        } else if (tab === "packs") {
+            content = `<div class="section">📦 Packs ziehen</div>
+              ${this._packReveal ? `<div style="background:rgba(0,230,118,0.15);border:1px solid #00e676;border-radius:10px;padding:8px 12px;margin-bottom:8px;color:#b9f6ca;font-weight:700">${this._packReveal}</div>` : ""}
+              ${PACKS.map(p => `<button class="play-btn pack-btn" data-pack="${p.id}" ${coins >= p.cost ? "" : "disabled"} style="background:linear-gradient(135deg,#ff9800,#e91e63);margin-bottom:6px">${p.name} — ${p.cost} 💰<br><small style="font-weight:400;opacity:.85">${p.desc}</small></button>`).join("")}`;
+        } else if (tab === "records") {
+            const ach = [
+                { ok: shop.ownedShips.length > 1, t: "🚀 Erstes Schiff gekauft" },
+                { ok: SHIPS.some(s => s.shape === "ufo" && shop.ownedShips.includes(s.id)), t: "🛸 Rundumschuss-Schiff besessen" },
+                { ok: SHIPS.some(s => s.packOnly && shop.ownedShips.includes(s.id)), t: "👑 Legendäres Schiff gezogen" },
+                { ok: shop.ownedMaps.length >= MAPS.length, t: "🗺️ Alle Maps freigeschaltet" },
+                { ok: shop.ownedFeatures.length > 0, t: "⚡ Erstes Feature freigeschaltet" },
+                { ok: shop.ownedPilots.length > 1, t: "🧑‍🚀 Neuen Piloten geholt" },
+                { ok: (recs.bestKills || 0) >= 50, t: "💥 50 Abschüsse in einer Runde" },
+                { ok: (recs.bestScore || 0) >= 500, t: "⭐ Highscore 500+" },
+            ];
+            content = `<div class="section">🏆 Rekorde</div>
+              <div class="stats-row">
+                <div class="chip">Highscore: <span>${recs.bestScore || 0}</span></div>
+                <div class="chip">Meiste Abschüsse: <span>${recs.bestKills || 0}</span></div>
+                <div class="chip">Höchste Welle: <span>${recs.bestWave || 0}</span></div>
+                <div class="chip">Spiele: <span>${recs.games || 0}</span></div>
+              </div>
+              <div class="section">🎖️ Erfolge (${ach.filter(a => a.ok).length}/${ach.length})</div>
+              <div class="ulist">${ach.map(a => `<div class="ucard ${a.ok ? "" : "locked"}"><div class="uicon">${a.ok ? "✅" : "🔒"}</div><div class="uinfo"><div class="uname">${a.t}</div></div></div>`).join("")}</div>`;
+        }
+
         this.shadowRoot.innerHTML = `<style>${SHOP_CSS}</style>
       <div class="wrap">
         <div class="header">
@@ -267,64 +337,19 @@ class AsteroidsGame extends HTMLElement {
           <div class="coins-badge">💰 ${coins}</div>
           <button class="btn-sm" id="close">Zurück</button>
         </div>
-        <div class="body">
-          <div>
-            <button class="play-btn" id="play" ${canPlay ? "" : "disabled"}>▶ Spielen</button>
-            <div class="play-cost">Immer kostenlos spielen!</div>
-          </div>
-          <div>
-            <div class="section">📊 Dein Setup</div>
-            <div class="stats-row">
-              <div class="chip">Leben: <span>${effects.lives}</span></div>
-              <div class="chip">Antrieb: <span>${effects.thrustPower}</span></div>
-              <div class="chip">Feuerrate: <span>${Math.round(1/effects.fireCooldown)}/s</span></div>
-              <div class="chip">Doppel: <span>${effects.doubleShot?"Ja":"Nein"}</span></div>
-              <div class="chip">Regenbogen: <span>${effects.rainbowBullets?"Ja":"Nein"}</span></div>
-            </div>
-          </div>
-          <div>
-            <div class="section">🚀 Raumschiffe</div>
-            <div class="grid" id="ship-grid"></div>
-          </div>
-          <div>
-            <div class="section">🎨 Eigenes Schiff bauen</div>
-            <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
-              <div style="display:flex;flex-direction:column;gap:6px">
-                <div class="custom-row"><span class="color-label">Rumpf</span><input type="color" class="color-pick" id="c-hull" value="${custom.hull === 'rainbow' ? '#4dd0e1' : custom.hull}"></div>
-                <div class="custom-row"><span class="color-label">Akzent</span><input type="color" class="color-pick" id="c-accent" value="${custom.accent}"></div>
-                <div class="custom-row"><span class="color-label">Flamme</span><input type="color" class="color-pick" id="c-flame" value="${custom.flame === 'rainbow' ? '#FF6D00' : custom.flame}"></div>
-              </div>
-              <canvas class="custom-preview" id="c-preview" width="64" height="64"></canvas>
-              <button class="custom-save" id="c-save">Speichern & Auswählen</button>
-            </div>
-          </div>
-          <div>
-            <div class="section">⬆️ Upgrades</div>
-            <div class="ulist" id="upgrade-list"></div>
-          </div>
-          <div>
-            <div class="section">📦 Packs ziehen</div>
-            ${this._packReveal ? `<div style="background:rgba(0,230,118,0.15);border:1px solid #00e676;border-radius:10px;padding:8px 12px;margin-bottom:8px;color:#b9f6ca;font-weight:700">${this._packReveal}</div>` : ""}
-            ${PACKS.map(p => `<button class="play-btn pack-btn" data-pack="${p.id}" ${coins >= p.cost ? "" : "disabled"} style="background:linear-gradient(135deg,#ff9800,#e91e63);margin-bottom:6px">${p.name} — ${p.cost} 💰<br><small style="font-weight:400;opacity:.85">${p.desc}</small></button>`).join("")}
-          </div>
-          <div>
-            <div class="section">🧑‍🚀 Piloten (sitzen im Raumschiff)</div>
-            <div class="grid" id="pilot-grid"></div>
-          </div>
-          <div>
-            <div class="section">🗺️ Maps</div>
-            <div class="grid" id="map-grid"></div>
-          </div>
-        </div>
+        <div class="tabbar">${TABS.map(tb => `<button class="tab${tb.id === tab ? " on" : ""}" data-tab="${tb.id}">${tb.label}</button>`).join("")}</div>
+        <div class="body">${content}</div>
       </div>`;
         this._packReveal = null;
 
         const sr = this.shadowRoot;
         sr.getElementById("close").onclick = () => this.dispatchEvent(new CustomEvent("close-game", { bubbles: true }));
-        sr.getElementById("play").onclick = () => this._startGame();
+        sr.querySelectorAll(".tab").forEach(b => { b.onclick = () => { this._tab = b.dataset.tab; this._showShop(); }; });
+        const playBtn = sr.getElementById("play"); if (playBtn) playBtn.onclick = () => this._startGame();
 
         // Ship grid
         const grid = sr.getElementById("ship-grid");
+        if (grid) {
         // Nur kaufbare Schiffe + bereits besessene Pack-Schiffe; nach Wert sortiert
         const allShips = SHIPS.filter(s => !s.packOnly || shop.ownedShips.includes(s.id));
         if (shop.customShip) allShips.push({ id: "custom", name: "Eigenes", price: 0, ...shop.customShip });
@@ -350,10 +375,12 @@ class AsteroidsGame extends HTMLElement {
             };
             grid.appendChild(card);
         }
+        }
 
         // Custom ship builder
         const cHull = sr.getElementById("c-hull"), cAccent = sr.getElementById("c-accent"), cFlame = sr.getElementById("c-flame");
         const cPreview = sr.getElementById("c-preview");
+        if (cHull) {
         const updatePreview = () => {
             const s = { hull: cHull.value, accent: cAccent.value, flame: cFlame.value };
             const ctx = cPreview.getContext("2d"); ctx.clearRect(0, 0, 64, 64);
@@ -365,9 +392,11 @@ class AsteroidsGame extends HTMLElement {
             shop.customShip = { hull: cHull.value, accent: cAccent.value, flame: cFlame.value };
             shop.equipped = "custom"; saveShop(shop); this._showShop();
         };
+        }
 
         // Upgrades
         const ul = sr.getElementById("upgrade-list");
+        if (ul) {
         for (const def of UPGRADE_DEFS) {
             const lvl = shop.upgradeLevels[def.id] || 0;
             const maxed = def.maxLevel && lvl >= def.maxLevel;
@@ -394,12 +423,14 @@ class AsteroidsGame extends HTMLElement {
             }
             ul.appendChild(card);
         }
+        }
 
         // Packs ziehen (verschiedene Typen)
         sr.querySelectorAll(".pack-btn").forEach(b => { b.onclick = () => this._openPack(b.dataset.pack); });
 
         // Piloten
         const pgrid = sr.getElementById("pilot-grid");
+        if (pgrid) {
         for (const p of PILOTS) {
             const owned = shop.ownedPilots.includes(p.id);
             const active = shop.equippedPilot === p.id;
@@ -419,9 +450,11 @@ class AsteroidsGame extends HTMLElement {
             };
             pgrid.appendChild(card);
         }
+        }
 
         // Maps
         const mgrid = sr.getElementById("map-grid");
+        if (mgrid) {
         for (const m of MAPS) {
             const owned = shop.ownedMaps.includes(m.id);
             const active = shop.equippedMap === m.id;
@@ -444,6 +477,7 @@ class AsteroidsGame extends HTMLElement {
                 }
             };
             mgrid.appendChild(card);
+        }
         }
     }
 
@@ -1021,7 +1055,15 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
             }
         };
 
-        const endGame = () => { setTimeout(() => { cancelAnimationFrame(raf); this._showShop(); }, 2000); };
+        const endGame = () => {
+            const r = getRecords();
+            r.bestScore = Math.max(r.bestScore || 0, score);
+            r.bestKills = Math.max(r.bestKills || 0, totalKills);
+            r.bestWave = Math.max(r.bestWave || 0, wave);
+            r.games = (r.games || 0) + 1;
+            saveRecords(r);
+            setTimeout(() => { cancelAnimationFrame(raf); this._showShop(); }, 2000);
+        };
 
         const loop = () => {
             const now = performance.now();
