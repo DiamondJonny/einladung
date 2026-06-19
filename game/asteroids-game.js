@@ -23,14 +23,21 @@ const SHIPS = [
     { id: "phoenix", name: "Phönix 🌈🔥", price: 3200, hull: "rainbow", accent: "#dd2c00", flame: "rainbow", shape: "ufo", beams: 10 },
 ];
 
-// Coole Maps (Weltraum-Hintergründe) – nur aus Packs ziehbar
+// Coole Maps (Weltraum-Hintergründe) – im Shop kaufbar (nicht aus Packs)
 const MAPS = [
-    { id: "classic", name: "Klassik 🌌", space: "#0a0a1a", star: "#ffffff" },
-    { id: "nebula",  name: "Nebel 💜",   space: "#1a0a2e", star: "#e0b3ff" },
-    { id: "matrix",  name: "Matrix 💚",  space: "#001008", star: "#5bff9d" },
-    { id: "sunset",  name: "Sonnenuntergang 🌅", space: "#2a0a1a", star: "#ffd0a0" },
-    { id: "deepsea", name: "Tiefsee 🌊", space: "#001a2e", star: "#7fd4ff" },
-    { id: "lava",    name: "Lava 🔥",    space: "#2a0d00", star: "#ff8a3d" },
+    { id: "classic", name: "Klassik 🌌", space: "#0a0a1a", star: "#ffffff", price: 0 },
+    { id: "nebula",  name: "Nebel 💜",   space: "#1a0a2e", star: "#e0b3ff", price: 150 },
+    { id: "matrix",  name: "Matrix 💚",  space: "#001008", star: "#5bff9d", price: 150 },
+    { id: "sunset",  name: "Sonnenuntergang 🌅", space: "#2a0a1a", star: "#ffd0a0", price: 200 },
+    { id: "deepsea", name: "Tiefsee 🌊", space: "#001a2e", star: "#7fd4ff", price: 200 },
+    { id: "lava",    name: "Lava 🔥",    space: "#2a0d00", star: "#ff8a3d", price: 250 },
+];
+
+// Features (Spezial-Fähigkeiten im Spiel) – aus Packs ziehbar, im Spiel per Knopf aktivierbar
+const FEATURES = [
+    { id: "teleport", name: "Teleport ✨", icon: "✨", cooldown: 4,  desc: "Springt ein Stück nach vorne (Ausweichen)" },
+    { id: "shield",   name: "Schild 🛡️", icon: "🛡️", cooldown: 12, desc: "3 Sek. unverwundbar" },
+    { id: "bomb",     name: "Bombe 💥",   icon: "💥", cooldown: 16, desc: "Zerstört Brocken in der Nähe" },
 ];
 
 const PACK_COST = 250;
@@ -55,7 +62,7 @@ const SHOP_KEY = "asteroidsShop";
 // korrekten Namen vergeben (in index.html), nicht hier automatisch.
 const COIN_KEY = "points";
 function loadShop() { try { return JSON.parse(localStorage.getItem(SHOP_KEY) || "null"); } catch { return null; } }
-function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null, ownedMaps: ["classic"], equippedMap: "classic" }; }
+function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null, ownedMaps: ["classic"], equippedMap: "classic", ownedFeatures: [] }; }
 function saveShop(d) { localStorage.setItem(SHOP_KEY, JSON.stringify(d)); }
 function getCoins() { return parseInt(localStorage.getItem(COIN_KEY) || "0"); }
 function setCoins(n) { localStorage.setItem(COIN_KEY, String(n)); }
@@ -175,6 +182,7 @@ class AsteroidsGame extends HTMLElement {
     connectedCallback() {
         this._shop = loadShop() || defaultShop();
         if (!this._shop.ownedMaps) { this._shop.ownedMaps = ["classic"]; this._shop.equippedMap = "classic"; }
+        if (!this._shop.ownedFeatures) { this._shop.ownedFeatures = []; }
         this._coins = getCoins();
         this._showShop();
     }
@@ -239,7 +247,7 @@ class AsteroidsGame extends HTMLElement {
             <div class="section">📦 Packs ziehen</div>
             ${this._packReveal ? `<div style="background:rgba(0,230,118,0.15);border:1px solid #00e676;border-radius:10px;padding:8px 12px;margin-bottom:8px;color:#b9f6ca;font-weight:700">${this._packReveal}</div>` : ""}
             <button class="play-btn" id="open-pack" ${coins >= PACK_COST ? "" : "disabled"} style="background:linear-gradient(135deg,#ff9800,#e91e63)">📦 Pack öffnen — ${PACK_COST} 💰</button>
-            <div class="play-cost">🎁 Zufällig: cooles Schiff, Map oder Münzen!</div>
+            <div class="play-cost">🎁 Zufällig: cooles Schiff, Feature (z. B. Teleport) oder Münzen!</div>
           </div>
           <div>
             <div class="section">🗺️ Maps</div>
@@ -340,9 +348,16 @@ class AsteroidsGame extends HTMLElement {
             card.appendChild(sw);
             const nm = document.createElement("div"); nm.className = "card-name"; nm.textContent = m.name; card.appendChild(nm);
             const pr = document.createElement("div"); pr.className = "card-price" + (owned ? " owned" : "");
-            pr.textContent = owned ? "✓" : "📦 Pack"; card.appendChild(pr);
+            pr.textContent = owned ? "✓" : `💰 ${m.price}`; card.appendChild(pr);
             if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = "AKTIV"; card.appendChild(b); }
-            if (owned) card.onclick = () => { shop.equippedMap = m.id; saveShop(shop); this._showShop(); };
+            card.className = "card" + (active ? " active" : "") + (!owned && coins < m.price ? " locked" : "");
+            card.onclick = () => {
+                if (owned) { shop.equippedMap = m.id; saveShop(shop); this._showShop(); }
+                else if (coins >= m.price) {
+                    this._coins -= m.price; setCoins(this._coins);
+                    shop.ownedMaps.push(m.id); shop.equippedMap = m.id; saveShop(shop); this._showShop();
+                }
+            };
             mgrid.appendChild(card);
         }
     }
@@ -353,16 +368,16 @@ class AsteroidsGame extends HTMLElement {
         if (this._coins < PACK_COST) return;
         this._coins -= PACK_COST; setCoins(this._coins);
         const lockedShips = SHIPS.filter(s => !shop.ownedShips.includes(s.id));
-        const lockedMaps = MAPS.filter(m => !shop.ownedMaps.includes(m.id));
+        const lockedFeatures = FEATURES.filter(f => !shop.ownedFeatures.includes(f.id));
         const pool = [];
         lockedShips.forEach(s => pool.push({ t: "ship", v: s }));
-        lockedMaps.forEach(m => pool.push({ t: "map", v: m }));
+        lockedFeatures.forEach(f => pool.push({ t: "feature", v: f }));
         // Etwas Glück: meistens etwas Neues, sonst Münzen
         let reward;
         if (pool.length && Math.random() < 0.8) reward = pool[Math.floor(Math.random() * pool.length)];
         else reward = { t: "coins", v: 100 + Math.floor(Math.random() * 4) * 50 };
         if (reward.t === "ship") { shop.ownedShips.push(reward.v.id); this._packReveal = `🎉 Neues Schiff gezogen: <b>${reward.v.name}</b>!`; }
-        else if (reward.t === "map") { shop.ownedMaps.push(reward.v.id); this._packReveal = `🗺️ Neue Map gezogen: <b>${reward.v.name}</b>!`; }
+        else if (reward.t === "feature") { shop.ownedFeatures.push(reward.v.id); this._packReveal = `⚡ Neues Feature gezogen: <b>${reward.v.name}</b>! (im Spiel per Knopf nutzen)`; }
         else { this._coins += reward.v; setCoins(this._coins); this._packReveal = `💰 Glück gehabt: <b>+${reward.v} Münzen</b>!`; }
         saveShop(shop); this._showShop();
     }
@@ -405,6 +420,9 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
   border: 2px solid rgba(0,255,255,0.2); border-radius: 10px; box-shadow: 0 0 20px rgba(0,255,255,0.08); }
 #mc { display: none; margin-top: 0.4rem; gap: 0.5rem; }
 @media (pointer: coarse) { #mc { display: flex; } }
+#feat-bar { display: flex; gap: 0.5rem; margin-top: 0.4rem; justify-content: center; }
+.cb.feat { background: rgba(124,92,255,0.25); border-color: rgba(124,92,255,0.6); position: relative; }
+.cb.feat.cooling { opacity: 0.4; }
 .cb { width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.1);
   border: 2px solid rgba(255,255,255,0.2); color: white; font-size: 1.2rem; cursor: pointer;
   display: flex; align-items: center; justify-content: center; }
@@ -421,7 +439,8 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
   <button class="cb" id="bt">🔥</button>
   <button class="cb" id="br">↻</button>
   <button class="cb" id="bf">💥</button>
-</div>`;
+</div>
+<div id="feat-bar">${this._shop.ownedFeatures.map(fid => { const f = FEATURES.find(x => x.id === fid); return f ? `<button class="cb feat" data-feat="${f.id}" title="${f.desc}">${f.icon}</button>` : ""; }).join("")}</div>`;
 
         const sr = this.shadowRoot;
         sr.getElementById("quit").onclick = () => this.dispatchEvent(new CustomEvent("close-game", { bubbles: true }));
@@ -507,11 +526,51 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         };
         wire("bl","left"); wire("br","right"); wire("bt","up"); wire("bf","fire");
 
+        // Features (Spezial-Fähigkeiten aus Packs)
+        const ownedFeats = this._shop.ownedFeatures || [];
+        const cooldowns = {};
+        const featBtns = {};
+        const activateFeature = (id) => {
+            if (!ownedFeats.includes(id) || (cooldowns[id] || 0) > 0) return;
+            const def = FEATURES.find(f => f.id === id); if (!def) return;
+            cooldowns[id] = def.cooldown;
+            if (id === "teleport") {
+                ship.x += Math.cos(ship.angle) * 240; ship.y += Math.sin(ship.angle) * 240;
+                invincible = Math.max(invincible, 0.6); spawnParticles(ship.x, ship.y, 12);
+            } else if (id === "shield") {
+                invincible = 3; spawnParticles(ship.x, ship.y, 16);
+            } else if (id === "bomb") {
+                let hit = 0;
+                asteroids = asteroids.filter(a => {
+                    if (Math.hypot(a.x - ship.x, a.y - ship.y) < 220) { spawnParticles(a.x, a.y, 8); hit++; return false; }
+                    return true;
+                });
+                if (hit) { this._coins += hit; setCoins(this._coins); coinEl.textContent = this._coins; }
+            }
+        };
+        ownedFeats.forEach(id => {
+            cooldowns[id] = 0;
+            const b = sr.querySelector(`.feat[data-feat="${id}"]`);
+            if (b) { featBtns[id] = b;
+                b.addEventListener("click", () => activateFeature(id), sig);
+                b.addEventListener("touchstart", e => { e.preventDefault(); activateFeature(id); }, { ...sig, passive: false });
+            }
+        });
+        const featKey = { t: "teleport", q: "shield", b: "bomb" };
+        document.addEventListener("keydown", e => { const id = featKey[e.key]; if (id) activateFeature(id); }, sig);
+
         this._cleanup = () => { ctrl.abort(); cancelAnimationFrame(raf); };
         let lastFrame = performance.now();
 
         const update = (dt) => {
             invincible -= dt;
+            // Feature-Cooldowns
+            for (const id in cooldowns) {
+                if (cooldowns[id] > 0) {
+                    cooldowns[id] = Math.max(0, cooldowns[id] - dt);
+                    if (featBtns[id]) featBtns[id].classList.toggle("cooling", cooldowns[id] > 0);
+                }
+            }
             if (keys.left) ship.angle -= 4 * dt;
             if (keys.right) ship.angle += 4 * dt;
             if (keys.up) {
