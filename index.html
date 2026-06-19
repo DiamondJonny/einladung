@@ -457,7 +457,11 @@
 
     submitBtn.disabled = true;
     msg.textContent = 'Einen Moment …';
-    const match = findMatch(input);
+    // VIP: das Geburtstagskind "Jonathan Schwarz" bekommt im Raketenspiel Sonderrechte
+    const vip = input.includes('jonathan') && input.includes('schwarz');
+    let match = findMatch(input);
+    if (!match && vip) match = candidates.find((c) => c.name === 'jonathan') || null;
+    localStorage.setItem('rocketVip', vip ? '1' : '0');
     ensureStudentAccount();
     if (!match) {
       // Nicht auf der Gästeliste: kein Bonus, aber Spielen & Stöbern ist trotzdem erlaubt.

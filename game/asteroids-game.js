@@ -14,21 +14,26 @@ const SHIPS = [
     { id: "stealth", name: "Stealth", price: 50, hull: "#546e7a", accent: "#263238", flame: "#ff5722" },
     { id: "candy", name: "Candy", price: 30, hull: "#f48fb1", accent: "#ec407a", flame: "#ff80ab" },
     { id: "plasma", name: "Plasma", price: 70, hull: "#00e5ff", accent: "#006064", flame: "#18ffff" },
-    { id: "ufo", name: "UFO 🛸 Rundumschuss", price: 500, hull: "#b388ff", accent: "#7c4dff", flame: "#00e5ff", shape: "ufo" },
+    { id: "ufo", name: "UFO 🛸 Rundumschuss", price: 1200, hull: "#b388ff", accent: "#7c4dff", flame: "#00e5ff", shape: "ufo" },
+    // ── Premium-Flotte: sehr gut & sehr teuer ──
+    { id: "comet", name: "Komet ☄️", price: 800, hull: "#ffd54f", accent: "#ff6f00", flame: "#ffffff" },
+    { id: "phantom", name: "Phantom 👻", price: 1000, hull: "#b0bec5", accent: "#37474f", flame: "#eceff1" },
+    { id: "dragon", name: "Sternendrache 🐉", price: 1800, hull: "#ff5252", accent: "#b71c1c", flame: "#ffca28", shape: "ufo" },
+    { id: "void", name: "Leeren-Jäger 🌌", price: 2400, hull: "#7c4dff", accent: "#1a0a4a", flame: "#e040fb", shape: "ufo" },
+    { id: "phoenix", name: "Phönix 🔥", price: 3200, hull: "#ff6e40", accent: "#dd2c00", flame: "#ffd180", shape: "ufo" },
 ];
 
 // Repeatable upgrades: each level costs more
 const UPGRADE_DEFS = [
-    { id: "speed", name: "Schuss-Speed", icon: "⚡", basePrice: 10, priceScale: 1.4,
-      desc: lvl => `Level ${lvl} → ${lvl+1}`, apply: (e, lvl) => { e.bulletSpeed = 300 + lvl * 40; } },
     { id: "thrust", name: "Antrieb", icon: "🔥", basePrice: 12, priceScale: 1.4,
       desc: lvl => `Level ${lvl} → ${lvl+1}`, apply: (e, lvl) => { e.thrustPower = 200 + lvl * 40; } },
     { id: "lives", name: "Extra-Leben", icon: "❤️", basePrice: 20, priceScale: 1.6,
       desc: lvl => `${3+lvl} → ${4+lvl} Leben`, apply: (e, lvl) => { e.lives = 3 + lvl; } },
     { id: "firerate", name: "Feuerrate", icon: "💨", basePrice: 15, priceScale: 1.5,
-      desc: lvl => `Level ${lvl} → ${lvl+1}`, apply: (e, lvl) => { e.fireCooldown = Math.max(0.05, 0.18 - lvl * 0.02); } },
-    { id: "double", name: "Doppelschuss", icon: "🔫🔫", basePrice: 50, priceScale: 0, maxLevel: 1,
-      desc: () => "Zwei Schüsse auf einmal", apply: (e) => { e.doubleShot = true; } },
+      desc: lvl => `Level ${lvl} → ${lvl+1}`, apply: (e, lvl) => { e.fireCooldown = Math.max(0.04, e.fireCooldown - lvl * 0.02); } },
+    { id: "double", name: "Doppelschuss", icon: "🔫🔫", basePrice: 50, priceScale: 1.6, maxLevel: 8,
+      desc: lvl => lvl < 1 ? "Zwei Schüsse — beim UFO: Strahlen 4 → 5" : `UFO-Strahlen: ${4+lvl} → ${5+lvl}`,
+      apply: (e, lvl) => { e.doubleShot = lvl >= 1; e.doubleLevel = lvl; } },
     { id: "rainbow_bullets", name: "Regenbogen-Schüsse", icon: "🌈", basePrice: 20, priceScale: 0, maxLevel: 1,
       desc: () => "Bunte Kugeln!", apply: (e) => { e.rainbowBullets = true; } },
 ];
@@ -48,11 +53,16 @@ function getUpgradePrice(def, level) {
     return Math.floor(def.basePrice * Math.pow(def.priceScale || 1, level));
 }
 
+// VIP: Jonathan Schwarz bekommt eine Top-Start-Feuerrate und doppelten Upgrade-Effekt.
+function isVip() { return localStorage.getItem("rocketVip") === "1"; }
+
 function getEffects(shop) {
-    const e = { bulletSpeed: 300, thrustPower: 200, lives: 3, fireCooldown: 0.18, doubleShot: false, rainbowBullets: false };
+    const vip = isVip();
+    const mult = vip ? 2 : 1;   // doppelt so viel pro gekauftem Upgrade
+    const e = { bulletSpeed: 300, thrustPower: 200, lives: 3, fireCooldown: vip ? 0.07 : 0.18, doubleShot: false, doubleLevel: 0, rainbowBullets: false };
     for (const def of UPGRADE_DEFS) {
         const lvl = shop.upgradeLevels[def.id] || 0;
-        if (lvl > 0) def.apply(e, lvl);
+        if (lvl > 0) def.apply(e, lvl * mult);
     }
     return e;
 }
@@ -186,7 +196,6 @@ class AsteroidsGame extends HTMLElement {
             <div class="section">📊 Dein Setup</div>
             <div class="stats-row">
               <div class="chip">Leben: <span>${effects.lives}</span></div>
-              <div class="chip">Schuss: <span>${effects.bulletSpeed}</span></div>
               <div class="chip">Antrieb: <span>${effects.thrustPower}</span></div>
               <div class="chip">Feuerrate: <span>${Math.round(1/effects.fireCooldown)}/s</span></div>
               <div class="chip">Doppel: <span>${effects.doubleShot?"Ja":"Nein"}</span></div>
@@ -267,17 +276,21 @@ class AsteroidsGame extends HTMLElement {
             const lvl = shop.upgradeLevels[def.id] || 0;
             const maxed = def.maxLevel && lvl >= def.maxLevel;
             const price = maxed ? Infinity : getUpgradePrice(def, lvl);
-            const canBuy = !maxed && coins >= price;
+            // Doppelschuss über Level 1 hinaus nur mit gekauftem UND ausgerüstetem Rundumschuss-Schiff
+            const eqDef = SHIPS.find(s => s.id === shop.equipped);
+            const ufoReady = !!(eqDef && eqDef.shape === "ufo") && shop.ownedShips.includes(shop.equipped);
+            const ufoGate = def.id === "double" && lvl >= 1 && !ufoReady;
+            const canBuy = !maxed && !ufoGate && coins >= price;
             const card = document.createElement("div");
-            card.className = "ucard" + (maxed ? " maxed" : "") + (!maxed && !canBuy ? " locked" : "");
+            card.className = "ucard" + (maxed ? " maxed" : "") + ((!maxed && !canBuy) || ufoGate ? " locked" : "");
             card.innerHTML = `
               <div class="uicon">${def.icon}</div>
               <div class="uinfo">
                 <div class="uname">${def.name} ${maxed ? "" : "(Lv " + lvl + ")"}</div>
-                <div class="udesc">${maxed ? "Max erreicht!" : def.desc(lvl)}</div>
+                <div class="udesc">${maxed ? "Max erreicht!" : (ufoGate ? "Nur mit ausgerüstetem UFO 🛸" : def.desc(lvl))}</div>
               </div>
-              <div class="uprice ${maxed?"maxed":""}">${maxed ? "✓ Max" : "💰 " + price}</div>`;
-            if (!maxed && canBuy) {
+              <div class="uprice ${maxed?"maxed":""}">${maxed ? "✓ Max" : (ufoGate ? "🛸 nötig" : "💰 " + price)}</div>`;
+            if (!maxed && !ufoGate && canBuy) {
                 card.onclick = () => {
                     this._coins -= price; setCoins(this._coins);
                     shop.upgradeLevels[def.id] = lvl + 1; saveShop(shop); this._showShop();
@@ -359,7 +372,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         // Infinite world state
         let cam = { x: 0, y: 0 }; // camera center
         let ship = { x: 0, y: 0, angle: -Math.PI / 2, vx: 0, vy: 0 };
-        let bullets = [], asteroids = [], particles = [];
+        let bullets = [], asteroids = [], particles = [], pickups = [];
         let keys = { left: false, right: false, up: false, fire: false };
         let fireCooldown = 0, score = 0, alive = true, wave = 1;
         let lives = fx.lives, invincible = 0, totalKills = 0;
@@ -452,12 +465,12 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 const bvx = cos * fx.bulletSpeed + ship.vx * 0.3;
                 const bvy = sin * fx.bulletSpeed + ship.vy * 0.3;
                 if (skin.shape === "ufo") {
-                    // Spezialfähigkeit: Rundumschuss in alle Richtungen gleichzeitig
-                    const N = 8;
+                    // Spezialfähigkeit: Rundumschuss – startet mit 4 Strahlen, +1 pro Doppelschuss-Level
+                    const N = 4 + (fx.doubleLevel || 0);
                     for (let k = 0; k < N; k++) {
                         const a = ship.angle + (k * 2 * Math.PI / N);
                         const c = Math.cos(a), s = Math.sin(a);
-                        bullets.push({ x: ship.x + c*14, y: ship.y + s*14, vx: c*fx.bulletSpeed + ship.vx*0.3, vy: s*fx.bulletSpeed + ship.vy*0.3, life: 2, hue: (bulletHue + k*45) % 360 });
+                        bullets.push({ x: ship.x + c*14, y: ship.y + s*14, vx: c*fx.bulletSpeed + ship.vx*0.3, vy: s*fx.bulletSpeed + ship.vy*0.3, life: 2, hue: (bulletHue + k*(360/N)) % 360 });
                     }
                 } else if (fx.doubleShot) {
                     const ox = Math.cos(ship.angle + Math.PI/2) * 5, oy = Math.sin(ship.angle + Math.PI/2) * 5;
@@ -480,8 +493,11 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                         bullets.splice(i, 1);
                         const pts = (4 - a.size) * 10;
                         score += pts;
-                        const earned = Math.ceil(pts / 10);
-                        this._coins += earned; setCoins(this._coins); coinEl.textContent = this._coins;
+                        // Brocken lässt manchmal 1–2 einsammelbare Münzen in der Galaxie fallen
+                        if (Math.random() < 0.4) {
+                            const num = Math.random() < 0.3 ? 2 : 1;
+                            for (let q = 0; q < num; q++) pickups.push({ x: a.x, y: a.y, vx: Math.random()*40-20, vy: Math.random()*40-20, life: 9 });
+                        }
                         totalKills++;
                         spawnParticles(a.x, a.y, 6);
                         if (a.size > 1) { spawnAsteroid(a.size-1, a.x, a.y); spawnAsteroid(a.size-1, a.x, a.y); }
@@ -516,6 +532,17 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.03;
                 if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // Münzen einsammeln (durch Drüberfliegen)
+            for (let i = pickups.length - 1; i >= 0; i--) {
+                const pk = pickups[i];
+                pk.x += pk.vx * dt; pk.y += pk.vy * dt; pk.life -= dt;
+                if (Math.hypot(pk.x - ship.x, pk.y - ship.y) < 20) {
+                    this._coins += 1; setCoins(this._coins); coinEl.textContent = this._coins;
+                    pickups.splice(i, 1); continue;
+                }
+                if (pk.life <= 0) pickups.splice(i, 1);
             }
         };
 
@@ -556,6 +583,16 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 }
                 ctx.beginPath(); ctx.arc(bx, by, 2.5, 0, Math.PI*2); ctx.fill();
                 ctx.shadowBlur = 0;
+            }
+
+            // Münzen (Drops)
+            for (const pk of pickups) {
+                const px = pk.x + ox, py = pk.y + oy;
+                if (px < -12 || px > W+12 || py < -12 || py > H+12) continue;
+                ctx.fillStyle = "#ffd54f"; ctx.shadowColor = "rgba(255,213,79,0.6)"; ctx.shadowBlur = 8;
+                ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = "#f9a825"; ctx.lineWidth = 2; ctx.stroke();
             }
 
             // Ship
