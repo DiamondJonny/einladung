@@ -368,6 +368,28 @@ class AsteroidsGame extends HTMLElement {
         // Packs ziehen (verschiedene Typen)
         sr.querySelectorAll(".pack-btn").forEach(b => { b.onclick = () => this._openPack(b.dataset.pack); });
 
+        // Piloten
+        const pgrid = sr.getElementById("pilot-grid");
+        for (const p of PILOTS) {
+            const owned = shop.ownedPilots.includes(p.id);
+            const active = shop.equippedPilot === p.id;
+            const card = document.createElement("div");
+            card.className = "card" + (active ? " active" : "") + (!owned && coins < p.price ? " locked" : "");
+            const ico = document.createElement("div"); ico.style.fontSize = "30px"; ico.style.height = "44px"; ico.style.display = "flex"; ico.style.alignItems = "center"; ico.style.justifyContent = "center"; ico.textContent = p.emoji; card.appendChild(ico);
+            const nm = document.createElement("div"); nm.className = "card-name"; nm.textContent = p.name; card.appendChild(nm);
+            const pr = document.createElement("div"); pr.className = "card-price" + (owned ? " owned" : "");
+            pr.textContent = owned ? "✓" : `💰 ${p.price}`; card.appendChild(pr);
+            if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = "AKTIV"; card.appendChild(b); }
+            card.onclick = () => {
+                if (owned) { shop.equippedPilot = p.id; saveShop(shop); this._showShop(); }
+                else if (coins >= p.price) {
+                    this._coins -= p.price; setCoins(this._coins);
+                    shop.ownedPilots.push(p.id); shop.equippedPilot = p.id; saveShop(shop); this._showShop();
+                }
+            };
+            pgrid.appendChild(card);
+        }
+
         // Maps
         const mgrid = sr.getElementById("map-grid");
         for (const m of MAPS) {
@@ -488,6 +510,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         const cv = sr.getElementById("c"), ctx = cv.getContext("2d");
         const coinEl = sr.getElementById("cd");
         const curMap = MAPS.find(m => m.id === this._shop.equippedMap) || MAPS[0];
+        const curPilot = PILOTS.find(p => p.id === this._shop.equippedPilot) || PILOTS[0];
         const W = cv.width, H = cv.height;
         const ctrl = new AbortController(), sig = { signal: ctrl.signal };
 
@@ -766,6 +789,9 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                         ctx.beginPath(); ctx.moveTo(-8,-4); ctx.lineTo(-16-Math.random()*6,0); ctx.lineTo(-8,4); ctx.stroke();
                     }
                     ctx.restore();
+                    // Pilot sitzt im Cockpit (aufrecht, nicht mitgedreht)
+                    ctx.font = "13px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillText(curPilot.emoji, sx, sy - 1);
                 }
             }
 
