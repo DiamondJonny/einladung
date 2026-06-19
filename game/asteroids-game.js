@@ -578,7 +578,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
   <div class="coins-d">💰 <span id="cd">${this._coins}</span></div>
   <button class="top-btn" id="quit">✕</button>
 </div>
-<canvas id="c" width="400" height="400"></canvas>
+<canvas id="c" width="560" height="560"></canvas>
 <div id="mc">
   <button class="cb" id="bl">↺</button>
   <button class="cb" id="bt">🔥</button>
