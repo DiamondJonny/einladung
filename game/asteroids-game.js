@@ -50,6 +50,7 @@ const FEATURES = [
     { id: "teleport", name: "Teleport ✨", icon: "✨", cooldown: 4,  desc: "Springt ein Stück nach vorne (Ausweichen)" },
     { id: "shield",   name: "Schild 🛡️", icon: "🛡️", cooldown: 12, desc: "3 Sek. unverwundbar" },
     { id: "bomb",     name: "Bombe 💥",   icon: "💥", cooldown: 16, desc: "Zerstört Brocken in der Nähe" },
+    { id: "drones",   name: "Begleit-Drohnen 🤖", icon: "🤖", cooldown: 0, passive: true, desc: "2 Bots fliegen mit und schießen für dich" },
 ];
 
 // Piloten (sitzen im Raumschiff) – im Shop kaufbar oder aus dem Piloten-Pack
@@ -543,7 +544,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
   <button class="cb" id="br">↻</button>
   <button class="cb" id="bf">💥</button>
 </div>
-<div id="feat-bar">${this._shop.ownedFeatures.map(fid => { const f = FEATURES.find(x => x.id === fid); return f ? `<button class="cb feat" data-feat="${f.id}" title="${f.desc}">${f.icon}</button>` : ""; }).join("")}</div>`;
+<div id="feat-bar">${this._shop.ownedFeatures.map(fid => { const f = FEATURES.find(x => x.id === fid); return f && !f.passive ? `<button class="cb feat" data-feat="${f.id}" title="${f.desc}">${f.icon}</button>` : ""; }).join("")}</div>`;
 
         const sr = this.shadowRoot;
         sr.getElementById("quit").onclick = () => this.dispatchEvent(new CustomEvent("close-game", { bubbles: true }));
@@ -632,6 +633,8 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
 
         // Features (Spezial-Fähigkeiten aus Packs)
         const ownedFeats = this._shop.ownedFeatures || [];
+        // Begleit-Drohnen (passiv): fliegen mit und schießen für dich
+        const drones = ownedFeats.includes("drones") ? [{ ang: 0, cd: 0, x: null, y: null }, { ang: Math.PI, cd: 0.45, x: null, y: null }] : [];
         const cooldowns = {};
         const featBtns = {};
         const activateFeature = (id) => {
@@ -673,6 +676,22 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 if (cooldowns[id] > 0) {
                     cooldowns[id] = Math.max(0, cooldowns[id] - dt);
                     if (featBtns[id]) featBtns[id].classList.toggle("cooling", cooldowns[id] > 0);
+                }
+            }
+            // Begleit-Drohnen: umkreisen das Schiff und schießen auf nahe Brocken
+            for (const dr of drones) {
+                dr.ang += dt * 1.6;
+                dr.x = ship.x + Math.cos(dr.ang) * 55;
+                dr.y = ship.y + Math.sin(dr.ang) * 55;
+                dr.cd -= dt;
+                if (dr.cd <= 0) {
+                    let best = null, bd = 340;
+                    for (const a of asteroids) { const d = Math.hypot(a.x - dr.x, a.y - dr.y); if (d < bd) { bd = d; best = a; } }
+                    if (best) {
+                        const ang = Math.atan2(best.y - dr.y, best.x - dr.x);
+                        bullets.push({ x: dr.x, y: dr.y, vx: Math.cos(ang) * fx.bulletSpeed, vy: Math.sin(ang) * fx.bulletSpeed, life: 1.6, hue: 190 });
+                        dr.cd = 0.9;
+                    }
                 }
             }
             if (keys.left) ship.angle -= 4 * dt;
@@ -796,6 +815,12 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 ctx.moveTo(ax + a.verts[0].x, ay + a.verts[0].y);
                 for (let i = 1; i < a.verts.length; i++) ctx.lineTo(ax + a.verts[i].x, ay + a.verts[i].y);
                 ctx.closePath(); ctx.stroke();
+            }
+
+            // Begleit-Drohnen
+            if (drones.length) {
+                ctx.font = "16px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                for (const dr of drones) { if (dr.x == null) continue; ctx.fillText("🤖", dr.x + ox, dr.y + oy); }
             }
 
             // Bullets
