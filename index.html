@@ -457,8 +457,8 @@
 
     submitBtn.disabled = true;
     msg.textContent = 'Einen Moment …';
-    // VIP: das Geburtstagskind "Jonathan Schwarz" bekommt im Raketenspiel Sonderrechte
-    const vip = input.includes('jonathan') && input.includes('schwarz');
+    // VIP: das Geburtstagskind "Jonathan" (auch "Jonathan Schwarz") bekommt im Raketenspiel Sonderrechte
+    const vip = input.includes('jonathan');
     let match = findMatch(input);
     if (!match && vip) match = candidates.find((c) => c.name === 'jonathan') || null;
     localStorage.setItem('rocketVip', vip ? '1' : '0');
