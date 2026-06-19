@@ -135,14 +135,72 @@ function getUpgradePrice(def, level) {
 // VIP: Jonathan Schwarz bekommt eine Top-Start-Feuerrate und doppelten Upgrade-Effekt.
 function isVip() { return localStorage.getItem("rocketVip__" + acct()) === "1"; }
 
+// Jedes Raumschiff hat eine eigene Spezial-Fähigkeit (nicht nur Farbe)
+const PERKS = {
+    default: { type: "thrust", val: 30, desc: "Wendiger Allrounder" },
+    fire: { type: "fire", val: 0.03, desc: "Schnellfeuer" },
+    ice: { type: "bspeed", val: 120, desc: "Schnelle Schüsse" },
+    gold: { type: "coin", val: 1.5, desc: "+50% Münzen" },
+    neon: { type: "fire", val: 0.04, desc: "Sehr schnelles Feuer" },
+    galaxy: { type: "life", val: 1, desc: "+1 Leben" },
+    rainbow: { type: "coin", val: 1.4, desc: "+40% Münzen" },
+    stealth: { type: "shield", val: 3, desc: "Start-Schild 3s" },
+    candy: { type: "thrust", val: 60, desc: "Sehr flink" },
+    plasma: { type: "bspeed", val: 160, desc: "Plasma-Tempo" },
+    ufo: { type: "beam", val: 1, desc: "+1 Strahl" },
+    comet: { type: "bspeed", val: 140, desc: "Kometen-Tempo" },
+    phantom: { type: "shield", val: 4, desc: "Start-Schild 4s" },
+    dragon: { type: "beam", val: 2, desc: "+2 Strahlen" },
+    void: { type: "beam", val: 3, desc: "+3 Strahlen" },
+    phoenix: { type: "life", val: 2, desc: "+2 Leben" },
+    shuttle: { type: "life", val: 1, desc: "+1 Leben" },
+    shuttle2: { type: "thrust", val: 50, desc: "Wendig" },
+    freighter: { type: "life", val: 3, desc: "+3 Leben (robust)" },
+    battleship: { type: "beam", val: 2, desc: "+2 Strahlen" },
+    titan: { type: "life", val: 2, desc: "Gepanzert: +2 Leben" },
+    mothership: { type: "coin", val: 2, desc: "Doppelte Münzen" },
+    wasp: { type: "fire", val: 0.05, desc: "Wespen-Schnellfeuer" },
+    beetle: { type: "life", val: 1, desc: "+1 Leben" },
+    arrow: { type: "bspeed", val: 190, desc: "Pfeilschnell" },
+    emerald: { type: "coin", val: 1.3, desc: "+30% Münzen" },
+    ruby: { type: "fire", val: 0.04, desc: "Feuerrate+" },
+    sapphire: { type: "bspeed", val: 150, desc: "Schnelle Schüsse" },
+    storm: { type: "thrust", val: 80, desc: "Sturm-Antrieb" },
+    thunder: { type: "fire", val: 0.05, desc: "Donner-Feuer" },
+    frost: { type: "shield", val: 3, desc: "Start-Schild 3s" },
+    inferno: { type: "bspeed", val: 175, desc: "Heiße Schüsse" },
+    vortex: { type: "beam", val: 2, desc: "+2 Strahlen" },
+    tornado: { type: "beam", val: 3, desc: "+3 Strahlen" },
+    nova: { type: "beam", val: 4, desc: "+4 Strahlen" },
+    quasar: { type: "coin", val: 1.8, desc: "+80% Münzen" },
+    eclipse: { type: "shield", val: 5, desc: "Start-Schild 5s" },
+    aurora: { type: "coin", val: 2, desc: "Doppelte Münzen" },
+    king: { type: "beam", val: 4, desc: "+4 Strahlen" },
+    blackhole: { type: "coin", val: 2.5, desc: "+150% Münzen" },
+    guardian: { type: "shield", val: 6, desc: "Start-Schild 6s" },
+    omega: { type: "beam", val: 6, desc: "+6 Strahlen" },
+    infinity: { type: "beam", val: 8, desc: "+8 Strahlen" },
+};
+function applyPerk(e, p) {
+    if (!p) return;
+    if (p.type === "fire") e.fireCooldown = Math.max(0.03, e.fireCooldown - p.val);
+    else if (p.type === "life") e.lives += p.val;
+    else if (p.type === "bspeed") e.bulletSpeed += p.val;
+    else if (p.type === "thrust") e.thrustPower += p.val;
+    else if (p.type === "beam") e.extraBeams = (e.extraBeams || 0) + p.val;
+    else if (p.type === "coin") e.coinMult = Math.max(e.coinMult || 1, p.val);
+    else if (p.type === "shield") e.startShield = Math.max(e.startShield || 0, p.val);
+}
+
 function getEffects(shop) {
     const vip = isVip();
     const mult = vip ? 2 : 1;   // doppelt so viel pro gekauftem Upgrade
-    const e = { bulletSpeed: 300, thrustPower: 200, lives: 3, fireCooldown: vip ? 0.07 : 0.18, doubleShot: false, doubleLevel: 0, rainbowBullets: false };
+    const e = { bulletSpeed: 300, thrustPower: 200, lives: 3, fireCooldown: vip ? 0.07 : 0.18, doubleShot: false, doubleLevel: 0, rainbowBullets: false, extraBeams: 0, coinMult: 1, startShield: 0 };
     for (const def of UPGRADE_DEFS) {
         const lvl = shop.upgradeLevels[def.id] || 0;
         if (lvl > 0) def.apply(e, lvl * mult);
     }
+    applyPerk(e, PERKS[shop.equipped]);   // Schiff-Spezialfähigkeit
     return e;
 }
 
@@ -209,6 +267,7 @@ const SHOP_CSS = `
 .badge { position: absolute; top: 3px; right: 3px; font-size: 0.55rem; background: #00e676; color: #1b5e20; border-radius: 3px; padding: 1px 3px; font-weight: 700; }
 .preview { width: 54px; height: 54px; }
 .card-name { font-size: 0.78rem; }
+.card-perk { font-size: 0.62rem; color: #80d8ff; font-weight: 600; text-align: center; line-height: 1.1; }
 .ulist { display: flex; flex-direction: column; gap: 6px; }
 .ucard {
   display: flex; align-items: center; gap: 10px;
@@ -363,6 +422,7 @@ class AsteroidsGame extends HTMLElement {
             const cvs = document.createElement("canvas"); cvs.width = 44; cvs.height = 44; cvs.className = "preview";
             this._drawPreview(cvs.getContext("2d"), s); card.appendChild(cvs);
             const nm = document.createElement("div"); nm.className = "card-name"; nm.textContent = s.name; card.appendChild(nm);
+            if (PERKS[s.id]) { const pk = document.createElement("div"); pk.className = "card-perk"; pk.textContent = "✨ " + PERKS[s.id].desc; card.appendChild(pk); }
             const pr = document.createElement("div"); pr.className = "card-price" + (owned ? " owned" : "");
             pr.textContent = owned ? "✓" : (s.packOnly ? "🌟 nur Pack" : `💰 ${s.price}`); card.appendChild(pr);
             if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = "AKTIV"; card.appendChild(b); }
@@ -649,7 +709,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         let bullets = [], asteroids = [], particles = [];
         let keys = { left: false, right: false, up: false, fire: false };
         let fireCooldown = 0, score = 0, alive = true, wave = 1;
-        let lives = fx.lives, invincible = 0, totalKills = 0, shake = 0;
+        let lives = fx.lives, invincible = fx.startShield || 0, totalKills = 0, shake = 0;
         let bulletHue = 0, raf;
 
         // Generate star field (fixed positions spread over a large area, tiled)
@@ -722,7 +782,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         const battle = true;
         const shipVal = skin.price != null ? skin.price : (skin.beams ? skin.beams * 250 : 50);
         const enemyLevel = Math.min(8, (curMap.diff || 1) + Math.floor(shipVal / 1200));
-        const enemyReward = 2 + enemyLevel * 2;   // schwerere Gegner geben mehr Münzen
+        const enemyReward = Math.round((2 + enemyLevel * 2) * (fx.coinMult || 1));   // schwerere Gegner + Schiff-Bonus = mehr Münzen
         let enemies = [], enemyBullets = [], enemySpawnCd = 1.5;
         const cooldowns = {};
         const featBtns = {};
@@ -807,7 +867,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 const bvy = sin * fx.bulletSpeed + ship.vy * 0.3;
                 if (skin.shape === "ufo") {
                     // Rundumschuss: Basis-Strahlen je nach Schiff (teurer = mehr), +2 pro Doppelschuss-Level
-                    const N = (skin.beams || 4) + (fx.doubleLevel || 0) * 2;
+                    const N = (skin.beams || 4) + (fx.doubleLevel || 0) * 2 + (fx.extraBeams || 0);
                     for (let k = 0; k < N; k++) {
                         const a = ship.angle + (k * 2 * Math.PI / N);
                         const c = Math.cos(a), s = Math.sin(a);
@@ -834,8 +894,8 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                         bullets.splice(i, 1);
                         const pts = (4 - a.size) * 10;
                         score += pts;
-                        // Punkt direkt gutschreiben (kein Aufsammeln) – bewusst sparsam, damit man nicht zu schnell alles hat
-                        this._coins += 1; setCoins(this._coins); coinEl.textContent = this._coins;
+                        // Punkt direkt gutschreiben (mit Münz-Bonus mancher Schiffe)
+                        this._coins += Math.round(fx.coinMult || 1); setCoins(this._coins); coinEl.textContent = this._coins;
                         totalKills++;
                         spawnParticles(a.x, a.y, 6);
                         shake = Math.max(shake, 4);
