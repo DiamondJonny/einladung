@@ -57,13 +57,13 @@ const SHIPS = [
 
 // Coole Maps (Weltraum-Hintergründe) – im Shop kaufbar (nicht aus Packs)
 const MAPS = [
-    { id: "classic", name: "Klassik 🌌", space: "#0a0a1a", star: "#ffffff", price: 0 },
-    { id: "nebula",  name: "Nebel 💜",   space: "#1a0a2e", star: "#e0b3ff", price: 150 },
-    { id: "matrix",  name: "Matrix 💚",  space: "#001008", star: "#5bff9d", price: 150 },
-    { id: "sunset",  name: "Sonnenuntergang 🌅", space: "#2a0a1a", star: "#ffd0a0", price: 200 },
-    { id: "deepsea", name: "Tiefsee 🌊", space: "#001a2e", star: "#7fd4ff", price: 200 },
-    { id: "lava",    name: "Lava 🔥",    space: "#2a0d00", star: "#ff8a3d", price: 250 },
-    { id: "kampfzone", name: "Kampfzone ⚔️ (Gegner!)", space: "#1a0008", star: "#ff6b6b", price: 300, battle: true },
+    { id: "classic", name: "Klassik 🌌 (Lvl 1)", space: "#0a0a1a", star: "#ffffff", price: 0,   diff: 1 },
+    { id: "nebula",  name: "Nebel 💜 (Lvl 2)",   space: "#1a0a2e", star: "#e0b3ff", price: 150, diff: 2 },
+    { id: "matrix",  name: "Matrix 💚 (Lvl 2)",  space: "#001008", star: "#5bff9d", price: 150, diff: 2 },
+    { id: "sunset",  name: "Sonnenuntergang 🌅 (Lvl 3)", space: "#2a0a1a", star: "#ffd0a0", price: 200, diff: 3 },
+    { id: "deepsea", name: "Tiefsee 🌊 (Lvl 3)", space: "#001a2e", star: "#7fd4ff", price: 200, diff: 3 },
+    { id: "lava",    name: "Lava 🔥 (Lvl 4)",    space: "#2a0d00", star: "#ff8a3d", price: 250, diff: 4 },
+    { id: "kampfzone", name: "Kampfzone ⚔️ (Lvl 5 – Top-Geld!)", space: "#1a0008", star: "#ff6b6b", price: 300, diff: 5 },
 ];
 
 // Features (Spezial-Fähigkeiten im Spiel) – aus Packs ziehbar, im Spiel per Knopf aktivierbar
@@ -473,6 +473,10 @@ class AsteroidsGame extends HTMLElement {
         // Greifarm-Automat-Animation, danach Shop mit Gewinn-Anzeige
         const icon = reward.t === "coins" ? (reward.jackpot ? "🎰" : "💰") : reward.t === "feature" ? reward.v.icon : reward.t === "pilot" ? reward.v.emoji : "🚀";
         const label = reward.t === "coins" ? (reward.jackpot ? `JACKPOT! +${reward.v}` : `+${reward.v} Münzen`) : reward.v.name;
+        // Rarity-Farbe für den Glow
+        this._glowFor = reward.t === "coins" ? (reward.jackpot ? "#ff4f9a" : "#ffd54f")
+            : reward.t === "ship" ? (reward.v.packOnly ? "#ffd700" : (reward.v.price >= 1500 ? "#b388ff" : reward.v.price >= 300 ? "#4fc3f7" : "#b0bec5"))
+            : reward.t === "pilot" ? "#5be3a0" : "#18ffff";
         this._playPackAnim(icon, label, () => this._showShop());
     }
 
@@ -613,7 +617,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         let bullets = [], asteroids = [], particles = [];
         let keys = { left: false, right: false, up: false, fire: false };
         let fireCooldown = 0, score = 0, alive = true, wave = 1;
-        let lives = fx.lives, invincible = 0, totalKills = 0;
+        let lives = fx.lives, invincible = 0, totalKills = 0, shake = 0;
         let bulletHue = 0, raf;
 
         // Generate star field (fixed positions spread over a large area, tiled)
@@ -682,10 +686,11 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
         // Begleit-Drohnen (passiv): fliegen mit und schießen für dich
         const drones = ownedFeats.includes("drones") ? [{ ang: 0, cd: 0, x: null, y: null }, { ang: Math.PI, cd: 0.45, x: null, y: null }] : [];
 
-        // Böse Gegner (nur auf der Kampfzone) – Stärke skaliert mit dem eigenen Schiff
-        const battle = !!curMap.battle;
+        // Böse Gegner überall – Stärke aus Map-Level + eigenem Schiff; höheres Level = mehr Geld
+        const battle = true;
         const shipVal = skin.price != null ? skin.price : (skin.beams ? skin.beams * 250 : 50);
-        const enemyLevel = battle ? Math.min(6, 1 + Math.floor(shipVal / 700)) : 0;
+        const enemyLevel = Math.min(8, (curMap.diff || 1) + Math.floor(shipVal / 1200));
+        const enemyReward = 2 + enemyLevel * 2;   // schwerere Gegner geben mehr Münzen
         let enemies = [], enemyBullets = [], enemySpawnCd = 1.5;
         const cooldowns = {};
         const featBtns = {};
@@ -705,7 +710,8 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                     return true;
                 });
                 if (hit) { this._coins += hit; setCoins(this._coins); coinEl.textContent = this._coins; }
-            }
+                shake = 14;
+            } else if (id === "teleport") { shake = Math.max(shake, 5); }
         };
         ownedFeats.forEach(id => {
             cooldowns[id] = 0;
@@ -723,6 +729,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
 
         const update = (dt) => {
             invincible -= dt;
+            if (shake > 0) shake = Math.max(0, shake - dt * 55);
             // Feature-Cooldowns
             for (const id in cooldowns) {
                 if (cooldowns[id] > 0) {
@@ -799,6 +806,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                         this._coins += 1; setCoins(this._coins); coinEl.textContent = this._coins;
                         totalKills++;
                         spawnParticles(a.x, a.y, 6);
+                        shake = Math.max(shake, 4);
                         // Zwei neue Brocken spawnen – irgendwo, aber NICHT auf dem Spieler
                         if (asteroids.length < 16) {
                             for (let q = 0; q < 2; q++) {
@@ -822,7 +830,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
             if (invincible <= 0) {
                 for (const a of asteroids) {
                     if (Math.hypot(ship.x-a.x, ship.y-a.y) < a.r + 10) {
-                        lives--; spawnParticles(ship.x, ship.y, 12);
+                        lives--; spawnParticles(ship.x, ship.y, 12); shake = 11;
                         if (lives <= 0) { alive = false; endGame(); return; }
                         invincible = 2; ship.vx = 0; ship.vy = 0;
                         break;
@@ -869,7 +877,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                         const en = enemies[j];
                         if (Math.hypot(b.x - en.x, b.y - en.y) < 14) {
                             bullets.splice(i, 1); en.hp--; spawnParticles(en.x, en.y, 5);
-                            if (en.hp <= 0) { enemies.splice(j, 1); this._coins += 5; setCoins(this._coins); coinEl.textContent = this._coins; score += 50; totalKills++; }
+                            if (en.hp <= 0) { enemies.splice(j, 1); this._coins += enemyReward; setCoins(this._coins); coinEl.textContent = this._coins; score += 50; totalKills++; shake = Math.max(shake, 6); }
                             break;
                         }
                     }
@@ -879,7 +887,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                     eb.x += eb.vx * dt; eb.y += eb.vy * dt; eb.life -= dt;
                     if (eb.life <= 0) { enemyBullets.splice(i, 1); continue; }
                     if (invincible <= 0 && Math.hypot(eb.x - ship.x, eb.y - ship.y) < 13) {
-                        enemyBullets.splice(i, 1); lives--; spawnParticles(ship.x, ship.y, 12);
+                        enemyBullets.splice(i, 1); lives--; spawnParticles(ship.x, ship.y, 12); shake = 11;
                         if (lives <= 0) { alive = false; endGame(); return; }
                         invincible = 2; ship.vx = 0; ship.vy = 0;
                     }
@@ -890,7 +898,9 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
 
         const draw = () => {
             ctx.fillStyle = curMap.space; ctx.fillRect(0, 0, W, H);
-            const ox = W/2 - cam.x, oy = H/2 - cam.y;
+            const shx = shake > 0 ? (Math.random() * 2 - 1) * shake : 0;
+            const shy = shake > 0 ? (Math.random() * 2 - 1) * shake : 0;
+            const ox = W/2 - cam.x + shx, oy = H/2 - cam.y + shy;
 
             // Stars (tile them) – Farbe je nach Map
             const t = performance.now();
@@ -957,19 +967,24 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                 const blink = invincible > 0 && Math.floor(t/100) % 2;
                 if (!blink) {
                     const sx = ship.x + ox, sy = ship.y + oy;
-                    ctx.save(); ctx.translate(sx, sy); ctx.rotate(ship.angle); ctx.scale(skin.scale || 1, skin.scale || 1);
+                    const isUfo = skin.shape === "ufo";
+                    // UFO bleibt aufrecht (dreht sich nicht), normale Schiffe drehen mit
+                    ctx.save(); ctx.translate(sx, sy); ctx.rotate(isUfo ? 0 : ship.angle); ctx.scale(skin.scale || 1, skin.scale || 1);
                     const tt = t / 300;
                     const hullC = skin.hull === "rainbow" ? `hsl(${(tt*60)%360},80%,60%)` : skin.hull;
                     ctx.strokeStyle = hullC; ctx.lineWidth = 2.5;
-                    if (skin.shape === "ufo") {
+                    if (isUfo) {
                         ctx.beginPath(); ctx.ellipse(0,3,15,5,0,0,6.2832); ctx.stroke();
                         ctx.strokeStyle = skin.accent || hullC;
                         ctx.beginPath(); ctx.arc(0,-1,7,Math.PI,0); ctx.stroke();
+                        // kleine rotierende Cockpit-Lichter (statt das UFO zu drehen)
+                        ctx.fillStyle = skin.flame === "rainbow" ? `hsl(${(tt*120)%360},90%,60%)` : (skin.flame || "#fff");
+                        for (let li = 0; li < 4; li++) { const la = tt * 2 + li * Math.PI / 2; ctx.beginPath(); ctx.arc(Math.cos(la) * 11, 3 + Math.sin(la) * 3.5, 1.6, 0, 6.2832); ctx.fill(); }
                         ctx.strokeStyle = hullC;
                     } else {
                         ctx.beginPath(); ctx.moveTo(14,0); ctx.lineTo(-10,-8); ctx.lineTo(-6,0); ctx.lineTo(-10,8); ctx.closePath(); ctx.stroke();
                     }
-                    if (keys.up) {
+                    if (keys.up && !isUfo) {
                         const flC = skin.flame === "rainbow" ? `hsl(${((tt*80)+180)%360},90%,55%)` : skin.flame;
                         ctx.strokeStyle = flC; ctx.lineWidth = 2;
                         ctx.beginPath(); ctx.moveTo(-8,-4); ctx.lineTo(-16-Math.random()*6,0); ctx.lineTo(-8,4); ctx.stroke();
