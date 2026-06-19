@@ -117,15 +117,13 @@ const UPGRADE_DEFS = [
       desc: () => "Bunte Kugeln!", apply: (e) => { e.rainbowBullets = true; } },
 ];
 
-const SHOP_KEY = "asteroidsShop";
-// Waehrung = gemeinsame Konto-Punkte ("points"). Der Einladungs-Bonus wird beim
-// korrekten Namen vergeben (in index.html), nicht hier automatisch.
-const COIN_KEY = "points";
-function loadShop() { try { return JSON.parse(localStorage.getItem(SHOP_KEY) || "null"); } catch { return null; } }
+// Mehrere Konten pro iPad: alle Daten werden pro aktivem Konto getrennt gespeichert.
+function acct() { return localStorage.getItem("activeAccount") || "default"; }
+function loadShop() { try { return JSON.parse(localStorage.getItem("asteroidsShop__" + acct()) || "null"); } catch { return null; } }
 function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null, ownedMaps: ["classic"], equippedMap: "classic", ownedFeatures: [], ownedPilots: ["astro"], equippedPilot: "astro" }; }
-function saveShop(d) { localStorage.setItem(SHOP_KEY, JSON.stringify(d)); }
-function getCoins() { return parseInt(localStorage.getItem(COIN_KEY) || "0"); }
-function setCoins(n) { localStorage.setItem(COIN_KEY, String(n)); }
+function saveShop(d) { localStorage.setItem("asteroidsShop__" + acct(), JSON.stringify(d)); }
+function getCoins() { return parseInt(localStorage.getItem("points__" + acct()) || "0"); }
+function setCoins(n) { localStorage.setItem("points__" + acct(), String(n)); }
 
 function getUpgradePrice(def, level) {
     if (def.maxLevel && level >= def.maxLevel) return Infinity;
@@ -133,7 +131,7 @@ function getUpgradePrice(def, level) {
 }
 
 // VIP: Jonathan Schwarz bekommt eine Top-Start-Feuerrate und doppelten Upgrade-Effekt.
-function isVip() { return localStorage.getItem("rocketVip") === "1"; }
+function isVip() { return localStorage.getItem("rocketVip__" + acct()) === "1"; }
 
 function getEffects(shop) {
     const vip = isVip();

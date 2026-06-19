@@ -265,7 +265,11 @@
           <div class="ico">🎮☄️</div><div class="t">Alle Spiele (24+)</div><div class="d">Weltraum Pilot mit UFO, plus Tetris, Snake, Pacman, Vokabel-Quiz & viele mehr – alles gratis!</div>
         </div>
       </div>
-      <div class="actions"><button class="ghost" id="backToInv">← Zur Einladung</button></div>
+      <div class="actions">
+        <button class="ghost" id="backToInv">← Zur Einladung</button>
+        <button class="ghost" id="switchAccount">👤 Konto wechseln</button>
+      </div>
+      <div id="acctChip" style="margin-top:10px;color:#7a7a90;font-size:14px;font-weight:700"></div>
       <div class="recommend">
         <div class="rec-title">✨ Schau dir auch meine anderen Seiten an</div>
         <a class="rec-card" href="https://bartfastiel.github.io/vocabulary-learning-app/" target="_blank" rel="noopener">
@@ -398,24 +402,36 @@
   function show(id) {
     ['gate','result','gamesHub','gameView'].forEach((x) => $(x).style.display = 'none');
     $(id).style.display = 'block';
+    if (id === 'gamesHub' && $('acctChip')) $('acctChip').textContent = '👤 Eingeloggt als: ' + currentAccountName();
   }
 
-  // ---- Spiele-Konto: automatischer Schüler-Account, Münzen = "points" ----
+  // ---- Mehrere Konten pro iPad: jeder Name = eigenes Konto, Daten pro Konto getrennt ----
+  function acct() { return localStorage.getItem('activeAccount') || 'default'; }
   const einladungPM = {
-    get points() { return parseInt(localStorage.getItem('points') || '0'); },
-    updatePoints(d) { localStorage.setItem('points', String(Math.max(0, this.points + (d || 0)))); }
+    get points() { return parseInt(localStorage.getItem('points__' + acct()) || '0'); },
+    updatePoints(d) { localStorage.setItem('points__' + acct(), String(Math.max(0, this.points + (d || 0)))); }
   };
-  function ensureStudentAccount() {
+  // Wechselt zum Konto eines Namens (legt es bei Bedarf an); migriert einmalig alte Daten
+  function setActiveAccount(slug, displayName) {
     localStorage.setItem('userRole', 'student');
-    if (!localStorage.getItem('playerName')) {
-      const a = ['Komet','Rakete','Stern','Nova','Pixel','Turbo','Galaxis','Astro','Blitz','Mond'];
-      localStorage.setItem('playerName', a[Math.floor(Math.random() * a.length)] + '-' + Math.floor(100 + Math.random() * 900));
+    localStorage.setItem('activeAccount', slug);
+    localStorage.setItem('playerName__' + slug, displayName || slug);
+    let list;
+    try { list = JSON.parse(localStorage.getItem('accounts') || '[]'); } catch (e) { list = []; }
+    if (!list.some((a) => a.id === slug)) { list.push({ id: slug, name: displayName || slug }); localStorage.setItem('accounts', JSON.stringify(list)); }
+    // Einmalige Migration alter (kontoloser) Spielstände auf das erste Konto
+    if (!localStorage.getItem('legacyMigrated') && localStorage.getItem('asteroidsShop') && !localStorage.getItem('asteroidsShop__' + slug)) {
+      ['points', 'asteroidsShop', 'rocketVip', 'inviteBonusGranted'].forEach((k) => {
+        const v = localStorage.getItem(k); if (v != null) localStorage.setItem(k + '__' + slug, v);
+      });
     }
+    localStorage.setItem('legacyMigrated', '1');
   }
+  function currentAccountName() { return localStorage.getItem('playerName__' + acct()) || acct(); }
   function grantInviteBonusOnce() {
-    if (localStorage.getItem('inviteBonusGranted') === '1') return;
+    if (localStorage.getItem('inviteBonusGranted__' + acct()) === '1') return;
     einladungPM.updatePoints(120);
-    localStorage.setItem('inviteBonusGranted', '1');
+    localStorage.setItem('inviteBonusGranted__' + acct(), '1');
   }
 
   // Konfetti-Regen 🎊
@@ -461,8 +477,9 @@
     const vip = input.includes('jonathan');
     let match = findMatch(input);
     if (!match && vip) match = candidates.find((c) => c.name === 'jonathan') || null;
-    localStorage.setItem('rocketVip', vip ? '1' : '0');
-    ensureStudentAccount();
+    // Konto pro Name (eigener Spielstand je Kind)
+    setActiveAccount(input, $('name').value.trim());
+    localStorage.setItem('rocketVip__' + acct(), vip ? '1' : '0');
     if (!match) {
       // Nicht auf der Gästeliste: kein Bonus, aber Spielen & Stöbern ist trotzdem erlaubt.
       $('result').innerHTML =
@@ -509,6 +526,7 @@
 
   $('backToInv').addEventListener('click', () => { stopGame(); show('result'); });
   $('backToHub').addEventListener('click', () => { stopGame(); show('gamesHub'); });
+  $('switchAccount').addEventListener('click', () => { stopGame(); $('name').value = ''; $('msg').textContent = ''; submitBtn.disabled = false; show('gate'); $('name').focus(); });
   document.querySelectorAll('.game-tile').forEach((t) =>
     t.addEventListener('click', () => openGame(t.dataset.game)));
 
@@ -524,7 +542,6 @@
 
   /* --- Alle Spiele: komplette Lobby des Vokabeltrainers (gratis) --- */
   function startSpace() {
-    ensureStudentAccount();
     // Die Lobby macht sich selbst zum Vollbild-Overlay mit eigenem ✕-Schließen-Knopf.
     show('gamesHub'); // liegt darunter, erscheint nach dem Schließen wieder
     const el = document.createElement('game-lobby');
