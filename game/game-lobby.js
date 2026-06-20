@@ -469,6 +469,7 @@ class GameLobby extends HTMLElement {
     _setupGlobalListeners() {
         this.shadowRoot.addEventListener("game-over",   e => this._handleGameOver(e));
         this.shadowRoot.addEventListener("close-game",  ()  => this._handleCloseGame());
+        this.shadowRoot.addEventListener("play-game",   e  => { const id = e.detail && e.detail.id; if (id) { this._clearSlot(); this._startGame(id); } });
     }
 
     // ── screens ───────────────────────────────────────────────────────────────

@@ -695,6 +695,7 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
 </style>
 <div class="top-bar">
   <button class="top-btn" id="back">🛒 Shop</button>
+  <button class="top-btn" id="soccer">⚽ Fußball</button>
   <div class="coins-d">💰 <span id="cd">${this._coins}</span></div>
   <button class="top-btn" id="quit">✕</button>
 </div>
@@ -710,6 +711,7 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
         const sr = this.shadowRoot;
         sr.getElementById("quit").onclick = () => this.dispatchEvent(new CustomEvent("close-game", { bubbles: true }));
         sr.getElementById("back").onclick = () => this._showShop();
+        { const _sb = sr.getElementById("soccer"); if (_sb) _sb.onclick = () => this.dispatchEvent(new CustomEvent("play-game", { bubbles: true, detail: { id: "soccer" } })); }
         this._runGame(effects, skin);
     }
 
