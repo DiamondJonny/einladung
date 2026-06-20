@@ -92,7 +92,7 @@ const FEATURES = [
 ];
 
 // Piloten (sitzen im Raumschiff) – im Shop kaufbar oder aus dem Piloten-Pack
-const PILOTS = [
+export const PILOTS = [
     { id: "astro",   name: "Astronaut 👨‍🚀", emoji: "👨‍🚀", price: 0 },
     { id: "astro2",  name: "Astronautin 👩‍🚀", emoji: "👩‍🚀", price: 60 },
     { id: "alien",   name: "Alien 👽",        emoji: "👽", price: 80 },

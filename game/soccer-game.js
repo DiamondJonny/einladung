@@ -2,11 +2,11 @@
 // Weltraum-Fußball: 2 Teams. Hol den Ball aus der Mitte und bring ihn ins
 // gegnerische Tor. Du + 1 Bot (Blau) gegen 2 Bots (Rot). Wirst du abgeschossen,
 // fällt der Ball und muss neu aufgesammelt werden.
-// Dein Schiff ist das, das du im Weltraum-Pilot gekauft/ausgerüstet hast.
-// Die anderen fliegen zufällige Schiffe. Findet im Sternen-Weltraum statt.
-// Steuerung: Dein Schiff folgt Maus/Finger. Geschossen wird automatisch.
+// Du fliegst dein im Weltraum-Pilot gewähltes Schiff + Pilot. Gegner fliegen
+// stärkere zufällige Schiffe. Es gibt Brocken: abschießen = schneller respawnen.
+// Steuerung: Schiff folgt Maus/Finger, schießt automatisch.
 
-import { SHIPS } from "./asteroids-game.js";
+import { SHIPS, PILOTS } from "./asteroids-game.js";
 
 (function () {
   const W = 640, H = 420;
@@ -30,6 +30,8 @@ import { SHIPS } from "./asteroids-game.js";
       if (type === "shoot") tone(1400, 0.05, "square", 0.025, 520);
       else if (type === "pick") tone(700, 0.10, "square", 0.05, 1100);
       else if (type === "hit") tone(220, 0.18, "sawtooth", 0.06, 80);
+      else if (type === "rock") tone(300, 0.14, "sawtooth", 0.05, 90);
+      else if (type === "fast") tone(880, 0.10, "square", 0.05, 1500);
       else if (type === "goal") [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.16, "square", 0.06), i * 90));
     } catch (e) {}
   }
@@ -37,15 +39,15 @@ import { SHIPS } from "./asteroids-game.js";
   const FALLBACK = { id: "default", hull: "#9fd0ff", accent: "#ffffff" };
   function shipHull(s, fb) { if (!s) return fb || "#ccc"; if (s.hull === "rainbow") return "#c86bff"; return s.hull || fb || "#ccc"; }
   function shipAccent(s) { if (!s || !s.accent || s.accent === "rainbow") return "#ffffff"; return s.accent; }
-  function equippedShip() {
-    try {
-      const acct = localStorage.getItem("activeAccount") || "default";
-      const shop = JSON.parse(localStorage.getItem("asteroidsShop__" + acct) || "null");
-      const id = shop && shop.equipped;
-      return (SHIPS && SHIPS.find(s => s.id === id)) || (SHIPS && SHIPS[0]) || FALLBACK;
-    } catch (e) { return (SHIPS && SHIPS[0]) || FALLBACK; }
+  function shopData() { try { const a = localStorage.getItem("activeAccount") || "default"; return JSON.parse(localStorage.getItem("asteroidsShop__" + a) || "null"); } catch (e) { return null; } }
+  function equippedShip() { const sh = shopData(); const id = sh && sh.equipped; return (SHIPS && SHIPS.find(s => s.id === id)) || (SHIPS && SHIPS[0]) || FALLBACK; }
+  function equippedPilot() { const sh = shopData(); const id = sh && sh.equippedPilot; return (PILOTS && PILOTS.find(p => p.id === id)) || (PILOTS && PILOTS[0]) || null; }
+  function randomShip(excludeDefault) {
+    const pool = (SHIPS || []).filter(s => excludeDefault ? s.id !== "default" : true);
+    const arr = pool.length ? pool : (SHIPS || [FALLBACK]);
+    return arr[Math.floor(Math.random() * arr.length)] || FALLBACK;
   }
-  function randomShip() { return (SHIPS && SHIPS.length) ? SHIPS[Math.floor(Math.random() * SHIPS.length)] : FALLBACK; }
+  function randomPilot() { return (PILOTS && PILOTS.length) ? PILOTS[Math.floor(Math.random() * PILOTS.length)] : null; }
 
   class SoccerGame extends HTMLElement {
     constructor() { super(); this.attachShadow({ mode: "open" }); this._raf = null; this._ctrl = new AbortController(); }
@@ -58,13 +60,13 @@ import { SHIPS } from "./asteroids-game.js";
         '.blue{color:#4da3ff;}.red{color:#ff5a6e;}' +
         'canvas{display:block;max-height:84vh;max-width:97vw;aspect-ratio:' + W + '/' + H + ';border:2px solid rgba(120,150,255,0.3);border-radius:10px;touch-action:none;background:#05050f;}' +
         '#msg{position:absolute;top:42%;left:0;right:0;text-align:center;font-size:2rem;font-weight:800;text-shadow:0 0 14px rgba(0,0,0,0.8);opacity:0;transition:opacity .2s;pointer-events:none;}' +
-        '#tip{font-size:.78rem;opacity:.7;margin-top:6px;text-align:center;max-width:95vw;}' +
+        '#tip{font-size:.76rem;opacity:.7;margin-top:6px;text-align:center;max-width:95vw;}' +
         '</style>' +
         '<div id="hud"><span class="blue">🔵 Blau <span id="sb">0</span></span><span>Ziel ' + WIN + '</span><span class="red"><span id="sr">0</span> Rot 🔴</span></div>' +
         '<div style="position:relative;display:flex;justify-content:center;width:100%;">' +
         '<canvas id="c" width="' + W + '" height="' + H + '"></canvas>' +
         '<div id="msg"></div></div>' +
-        '<div id="tip">Dein gekauftes Schiff! Bewege es mit Maus/Finger · schießt automatisch · bring den Ball ins <b>rechte</b> Tor</div>';
+        '<div id="tip">Dein Schiff & Pilot! Maus/Finger bewegt · schießt automatisch · Ball ins <b>rechte</b> Tor · Brocken abschießen = schneller zurück</div>';
 
       this._cv = this.shadowRoot.getElementById("c");
       this._ctx = this._cv.getContext("2d");
@@ -76,21 +78,43 @@ import { SHIPS } from "./asteroids-game.js";
 
     disconnectedCallback() { cancelAnimationFrame(this._raf); this._ctrl.abort(); }
 
+    _spawnRock(x, y) {
+      const r = 12 + Math.random() * 11;
+      const pts = []; for (let i = 0; i < 8; i++) pts.push(0.7 + Math.random() * 0.5);
+      const ang = Math.random() * Math.PI * 2, sp = 8 + Math.random() * 16;
+      return { x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 1.2, hp: 2, pts };
+    }
+    _randRockPos() {
+      let x, y, tries = 0;
+      do { x = 40 + Math.random() * (W - 80); y = 30 + Math.random() * (H - 60); tries++; }
+      while (Math.hypot(x - W / 2, y - H / 2) < 90 && tries < 20);
+      return [x, y];
+    }
+
     _init() {
       this.scoreB = 0; this.scoreR = 0; this._over = false; this._msgT = 0;
-      const mine = equippedShip();
+      this.fastResp = [0, 0];
+      const mine = equippedShip(), myPilot = equippedPilot();
       const defs = [
         { team: 0, human: true, x: 170, y: H / 2 },
         { team: 0, human: false, x: 120, y: H / 2 - 80 },
         { team: 1, human: false, x: W - 120, y: H / 2 - 80 },
         { team: 1, human: false, x: W - 170, y: H / 2 },
       ];
-      this.players = defs.map(p => ({ vx: 0, vy: 0, alive: true, respawn: 0, fireCd: Math.random(), angle: p.team === 0 ? 0 : Math.PI, baseX: p.x, baseY: p.y, ship: p.human ? mine : randomShip(), ...p }));
+      this.players = defs.map(p => ({
+        vx: 0, vy: 0, alive: true, respawn: 0, fireCd: Math.random(), angle: p.team === 0 ? 0 : Math.PI,
+        baseX: p.x, baseY: p.y,
+        ship: p.human ? mine : randomShip(true),
+        pilot: p.human ? myPilot : randomPilot(),
+        ...p
+      }));
       this.bullets = [];
       this.ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, carrier: null, cool: 0 };
       this.mx = 170; this.my = H / 2;
       this.stars = [];
       for (let i = 0; i < 130; i++) this.stars.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() < 0.85 ? 1 : 2, b: Math.random() });
+      this.rocks = [];
+      for (let i = 0; i < 5; i++) { const [x, y] = this._randRockPos(); this.rocks.push(this._spawnRock(x, y)); }
     }
 
     _bind() {
@@ -128,10 +152,30 @@ import { SHIPS } from "./asteroids-game.js";
       return [p.team === 0 ? W * 0.42 : W * 0.58, ball.y];
     }
 
+    _rockDestroyed(rk, team) {
+      sfx("rock");
+      if (team === 0 || team === 1) {
+        this.fastResp[team] = 6;
+        let helped = false;
+        for (const p of this.players) { if (!p.alive && p.team === team) { p.respawn = Math.max(0.3, p.respawn - 1.4); helped = true; } }
+        if (helped) sfx("fast");
+      }
+      const [x, y] = this._randRockPos();
+      this.rocks.push(this._spawnRock(x, y));
+    }
+
     _update(dt) {
       const ball = this.ball;
       if (this._msgT > 0) { this._msgT -= dt; if (this._msgT <= 0) this._msg.style.opacity = "0"; }
       if (ball.cool > 0) ball.cool -= dt;
+      for (let t = 0; t < 2; t++) if (this.fastResp[t] > 0) this.fastResp[t] -= dt;
+
+      // Brocken bewegen
+      for (const rk of this.rocks) {
+        rk.x += rk.vx * dt; rk.y += rk.vy * dt; rk.rot += rk.vr * dt;
+        if (rk.x < rk.r) { rk.x = rk.r; rk.vx = Math.abs(rk.vx); } if (rk.x > W - rk.r) { rk.x = W - rk.r; rk.vx = -Math.abs(rk.vx); }
+        if (rk.y < rk.r) { rk.y = rk.r; rk.vy = Math.abs(rk.vy); } if (rk.y > H - rk.r) { rk.y = H - rk.r; rk.vy = -Math.abs(rk.vy); }
+      }
 
       for (const p of this.players) {
         if (!p.alive) { p.respawn -= dt; if (p.respawn <= 0) { p.alive = true; p.x = p.baseX; p.y = p.baseY; p.vx = p.vy = 0; } continue; }
@@ -148,8 +192,12 @@ import { SHIPS } from "./asteroids-game.js";
         if (sp > 8) p.angle = Math.atan2(p.vy, p.vx);
         p.fireCd -= dt;
         if (ball.carrier !== p && p.fireCd <= 0) {
+          // Ziel: nächster Gegner; sonst (frei) auf nächsten Brocken, um schneller zurückzukommen
           const e = this._nearestEnemy(p, 235);
-          if (e) { const a = Math.atan2(e.y - p.y, e.x - p.x); this.bullets.push({ x: p.x + Math.cos(a) * 16, y: p.y + Math.sin(a) * 16, vx: Math.cos(a) * 370, vy: Math.sin(a) * 370, team: p.team, life: 1.1 }); p.fireCd = 0.55 + Math.random() * 0.3; sfx("shoot"); }
+          let a = null;
+          if (e) a = Math.atan2(e.y - p.y, e.x - p.x);
+          else { let best = null, bd = 240; for (const rk of this.rocks) { const d = Math.hypot(rk.x - p.x, rk.y - p.y); if (d < bd) { bd = d; best = rk; } } if (best) a = Math.atan2(best.y - p.y, best.x - p.x); }
+          if (a !== null) { this.bullets.push({ x: p.x + Math.cos(a) * 16, y: p.y + Math.sin(a) * 16, vx: Math.cos(a) * 370, vy: Math.sin(a) * 370, team: p.team, life: 1.1 }); p.fireCd = 0.55 + Math.random() * 0.3; sfx("shoot"); }
         }
       }
 
@@ -170,12 +218,20 @@ import { SHIPS } from "./asteroids-game.js";
       for (let i = this.bullets.length - 1; i >= 0; i--) {
         const b = this.bullets[i]; b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
         if (b.life <= 0 || b.x < 0 || b.x > W || b.y < 0 || b.y > H) { this.bullets.splice(i, 1); continue; }
-        for (const p of this.players) { if (!p.alive || p.team === b.team) continue; if (Math.hypot(p.x - b.x, p.y - b.y) < 14) { this._destroy(p); this.bullets.splice(i, 1); break; } }
+        let hit = false;
+        for (const p of this.players) { if (!p.alive || p.team === b.team) continue; if (Math.hypot(p.x - b.x, p.y - b.y) < 14) { this._destroy(p); hit = true; break; } }
+        if (!hit) {
+          for (let r = this.rocks.length - 1; r >= 0; r--) {
+            const rk = this.rocks[r];
+            if (Math.hypot(b.x - rk.x, b.y - rk.y) < rk.r) { hit = true; rk.hp--; if (rk.hp <= 0) { this.rocks.splice(r, 1); this._rockDestroyed(rk, b.team); } break; }
+          }
+        }
+        if (hit) this.bullets.splice(i, 1);
       }
     }
 
     _destroy(p) {
-      p.alive = false; p.respawn = 2.2; sfx("hit");
+      p.alive = false; p.respawn = (this.fastResp[p.team] > 0) ? 1.0 : 2.2; sfx("hit");
       if (this.ball.carrier === p) { this.ball.carrier = null; this.ball.cool = 0.6; this.ball.vx = (Math.random() - 0.5) * 140; this.ball.vy = (Math.random() - 0.5) * 140; }
     }
 
@@ -197,44 +253,44 @@ import { SHIPS } from "./asteroids-game.js";
 
     _drawShip(ctx, p) {
       const teamCol = p.team === 0 ? "#4da3ff" : "#ff5a6e";
-      // Team-Ring zur Unterscheidung
       ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
       ctx.strokeStyle = teamCol; ctx.lineWidth = p.human ? 3 : 2;
       ctx.shadowColor = teamCol; ctx.shadowBlur = p.human ? 12 : 6; ctx.stroke(); ctx.shadowBlur = 0;
-      // Schiff in den Farben des (gekauften/zufälligen) Schiffs
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle || 0);
       ctx.fillStyle = shipHull(p.ship, teamCol);
       ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(-9, 8); ctx.lineTo(-5, 0); ctx.lineTo(-9, -8); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = shipAccent(p.ship); ctx.lineWidth = 1.5; ctx.stroke();
       ctx.restore();
+      // Pilot/Figur (aufrecht, nicht gedreht)
+      if (p.pilot && p.pilot.emoji) { ctx.font = "13px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(p.pilot.emoji, p.x, p.y); ctx.textBaseline = "alphabetic"; ctx.textAlign = "start"; }
       if (p.human) { ctx.fillStyle = "#fff"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center"; ctx.fillText("DU", p.x, p.y - 19); ctx.textAlign = "start"; }
     }
 
     _draw() {
       const ctx = this._ctx;
       ctx.fillStyle = "#05050f"; ctx.fillRect(0, 0, W, H);
-      // Sterne (Weltraum)
       const t = performance.now() / 1000;
       ctx.fillStyle = "#cfe3ff";
-      for (const s of this.stars) {
-        ctx.globalAlpha = 0.35 + 0.5 * Math.abs(Math.sin(t * 1.4 + s.b * 12));
-        ctx.fillRect(s.x, s.y, s.s, s.s);
-      }
+      for (const s of this.stars) { ctx.globalAlpha = 0.35 + 0.5 * Math.abs(Math.sin(t * 1.4 + s.b * 12)); ctx.fillRect(s.x, s.y, s.s, s.s); }
       ctx.globalAlpha = 1;
-      // Mittellinie + Kreis
       ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
       ctx.beginPath(); ctx.arc(W / 2, H / 2, 46, 0, Math.PI * 2); ctx.stroke();
-      // Tore
       ctx.fillStyle = "rgba(77,163,255,0.16)"; ctx.fillRect(0, GOAL_TOP, 12, GOAL_BOT - GOAL_TOP);
       ctx.strokeStyle = "#4da3ff"; ctx.strokeRect(0, GOAL_TOP, 12, GOAL_BOT - GOAL_TOP);
       ctx.fillStyle = "rgba(255,90,110,0.16)"; ctx.fillRect(W - 12, GOAL_TOP, 12, GOAL_BOT - GOAL_TOP);
       ctx.strokeStyle = "#ff5a6e"; ctx.strokeRect(W - 12, GOAL_TOP, 12, GOAL_BOT - GOAL_TOP);
-      // Schüsse
+      // Brocken
+      for (const rk of this.rocks) {
+        ctx.save(); ctx.translate(rk.x, rk.y); ctx.rotate(rk.rot);
+        ctx.fillStyle = "#6b6157"; ctx.strokeStyle = "#9b8d7e"; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < rk.pts.length; i++) { const a = (i / rk.pts.length) * Math.PI * 2, rr = rk.r * rk.pts[i]; const x = Math.cos(a) * rr, y = Math.sin(a) * rr; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
       for (const b of this.bullets) { ctx.fillStyle = b.team === 0 ? "#9fd0ff" : "#ffb3bd"; ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI * 2); ctx.fill(); }
-      // Schiffe
       for (const p of this.players) { if (p.alive) this._drawShip(ctx, p); }
-      // Ball
       ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(255,255,255,0.85)"; ctx.shadowBlur = 12;
       ctx.beginPath(); ctx.arc(this.ball.x, this.ball.y, 7, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
       ctx.strokeStyle = "#333"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(this.ball.x, this.ball.y, 7, 0, Math.PI * 2); ctx.stroke();
