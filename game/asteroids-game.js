@@ -20,7 +20,7 @@ function sfx(type){
 
 // ── Shop Data ─────────────────────────────────────────────────────────────────
 
-const SHIPS = [
+export const SHIPS = [
     { id: "default", name: "Rakete 🚀", price: 0, hull: "#4dd0e1", accent: "#00838f", flame: "#FF6D00" },
     { id: "fire", name: "Feuerfalke", price: 20, hull: "#ef5350", accent: "#b71c1c", flame: "#ffeb3b" },
     { id: "ice", name: "Eispfeil", price: 20, hull: "#81d4fa", accent: "#0277bd", flame: "#4fc3f7" },

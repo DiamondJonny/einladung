@@ -2,7 +2,11 @@
 // Weltraum-Fußball: 2 Teams. Hol den Ball aus der Mitte und bring ihn ins
 // gegnerische Tor. Du + 1 Bot (Blau) gegen 2 Bots (Rot). Wirst du abgeschossen,
 // fällt der Ball und muss neu aufgesammelt werden.
-// Steuerung: Dein Schiff folgt Maus/Finger. Geschossen wird automatisch auf Gegner.
+// Dein Schiff ist das, das du im Weltraum-Pilot gekauft/ausgerüstet hast.
+// Die anderen fliegen zufällige Schiffe. Findet im Sternen-Weltraum statt.
+// Steuerung: Dein Schiff folgt Maus/Finger. Geschossen wird automatisch.
+
+import { SHIPS } from "./asteroids-game.js";
 
 (function () {
   const W = 640, H = 420;
@@ -30,16 +34,29 @@
     } catch (e) {}
   }
 
+  const FALLBACK = { id: "default", hull: "#9fd0ff", accent: "#ffffff" };
+  function shipHull(s, fb) { if (!s) return fb || "#ccc"; if (s.hull === "rainbow") return "#c86bff"; return s.hull || fb || "#ccc"; }
+  function shipAccent(s) { if (!s || !s.accent || s.accent === "rainbow") return "#ffffff"; return s.accent; }
+  function equippedShip() {
+    try {
+      const acct = localStorage.getItem("activeAccount") || "default";
+      const shop = JSON.parse(localStorage.getItem("asteroidsShop__" + acct) || "null");
+      const id = shop && shop.equipped;
+      return (SHIPS && SHIPS.find(s => s.id === id)) || (SHIPS && SHIPS[0]) || FALLBACK;
+    } catch (e) { return (SHIPS && SHIPS[0]) || FALLBACK; }
+  }
+  function randomShip() { return (SHIPS && SHIPS.length) ? SHIPS[Math.floor(Math.random() * SHIPS.length)] : FALLBACK; }
+
   class SoccerGame extends HTMLElement {
     constructor() { super(); this.attachShadow({ mode: "open" }); this._raf = null; this._ctrl = new AbortController(); }
 
     connectedCallback() {
       this.shadowRoot.innerHTML =
         '<style>' +
-        ':host{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;background:#05010f;font-family:"Segoe UI",sans-serif;color:#fff;user-select:none;}' +
+        ':host{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;background:#03030c;font-family:"Segoe UI",sans-serif;color:#fff;user-select:none;}' +
         '#hud{display:flex;gap:1.4rem;font-weight:700;font-size:1.05rem;margin-bottom:6px;align-items:center;}' +
         '.blue{color:#4da3ff;}.red{color:#ff5a6e;}' +
-        'canvas{display:block;max-height:84vh;max-width:97vw;aspect-ratio:' + W + '/' + H + ';border:2px solid rgba(120,150,255,0.3);border-radius:10px;touch-action:none;background:#0a0a1e;}' +
+        'canvas{display:block;max-height:84vh;max-width:97vw;aspect-ratio:' + W + '/' + H + ';border:2px solid rgba(120,150,255,0.3);border-radius:10px;touch-action:none;background:#05050f;}' +
         '#msg{position:absolute;top:42%;left:0;right:0;text-align:center;font-size:2rem;font-weight:800;text-shadow:0 0 14px rgba(0,0,0,0.8);opacity:0;transition:opacity .2s;pointer-events:none;}' +
         '#tip{font-size:.78rem;opacity:.7;margin-top:6px;text-align:center;max-width:95vw;}' +
         '</style>' +
@@ -47,7 +64,7 @@
         '<div style="position:relative;display:flex;justify-content:center;width:100%;">' +
         '<canvas id="c" width="' + W + '" height="' + H + '"></canvas>' +
         '<div id="msg"></div></div>' +
-        '<div id="tip">Bewege dein Schiff mit Maus/Finger · es schießt automatisch · bring den Ball ins <b>rechte</b> Tor</div>';
+        '<div id="tip">Dein gekauftes Schiff! Bewege es mit Maus/Finger · schießt automatisch · bring den Ball ins <b>rechte</b> Tor</div>';
 
       this._cv = this.shadowRoot.getElementById("c");
       this._ctx = this._cv.getContext("2d");
@@ -61,16 +78,19 @@
 
     _init() {
       this.scoreB = 0; this.scoreR = 0; this._over = false; this._msgT = 0;
+      const mine = equippedShip();
       const defs = [
         { team: 0, human: true, x: 170, y: H / 2 },
         { team: 0, human: false, x: 120, y: H / 2 - 80 },
         { team: 1, human: false, x: W - 120, y: H / 2 - 80 },
         { team: 1, human: false, x: W - 170, y: H / 2 },
       ];
-      this.players = defs.map(p => ({ vx: 0, vy: 0, alive: true, respawn: 0, fireCd: Math.random(), angle: p.team === 0 ? 0 : Math.PI, baseX: p.x, baseY: p.y, ...p }));
+      this.players = defs.map(p => ({ vx: 0, vy: 0, alive: true, respawn: 0, fireCd: Math.random(), angle: p.team === 0 ? 0 : Math.PI, baseX: p.x, baseY: p.y, ship: p.human ? mine : randomShip(), ...p }));
       this.bullets = [];
       this.ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, carrier: null, cool: 0 };
       this.mx = 170; this.my = H / 2;
+      this.stars = [];
+      for (let i = 0; i < 130; i++) this.stars.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() < 0.85 ? 1 : 2, b: Math.random() });
     }
 
     _bind() {
@@ -175,26 +195,46 @@
       setTimeout(() => { this.dispatchEvent(new CustomEvent("game-over", { bubbles: true, detail: { score: this.scoreB, pointsEarned: 0 } })); }, 2400);
     }
 
+    _drawShip(ctx, p) {
+      const teamCol = p.team === 0 ? "#4da3ff" : "#ff5a6e";
+      // Team-Ring zur Unterscheidung
+      ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+      ctx.strokeStyle = teamCol; ctx.lineWidth = p.human ? 3 : 2;
+      ctx.shadowColor = teamCol; ctx.shadowBlur = p.human ? 12 : 6; ctx.stroke(); ctx.shadowBlur = 0;
+      // Schiff in den Farben des (gekauften/zufälligen) Schiffs
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle || 0);
+      ctx.fillStyle = shipHull(p.ship, teamCol);
+      ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(-9, 8); ctx.lineTo(-5, 0); ctx.lineTo(-9, -8); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = shipAccent(p.ship); ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+      if (p.human) { ctx.fillStyle = "#fff"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center"; ctx.fillText("DU", p.x, p.y - 19); ctx.textAlign = "start"; }
+    }
+
     _draw() {
       const ctx = this._ctx;
-      ctx.fillStyle = "#0a0a1e"; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#05050f"; ctx.fillRect(0, 0, W, H);
+      // Sterne (Weltraum)
+      const t = performance.now() / 1000;
+      ctx.fillStyle = "#cfe3ff";
+      for (const s of this.stars) {
+        ctx.globalAlpha = 0.35 + 0.5 * Math.abs(Math.sin(t * 1.4 + s.b * 12));
+        ctx.fillRect(s.x, s.y, s.s, s.s);
+      }
+      ctx.globalAlpha = 1;
+      // Mittellinie + Kreis
       ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
       ctx.beginPath(); ctx.arc(W / 2, H / 2, 46, 0, Math.PI * 2); ctx.stroke();
+      // Tore
       ctx.fillStyle = "rgba(77,163,255,0.16)"; ctx.fillRect(0, GOAL_TOP, 12, GOAL_BOT - GOAL_TOP);
       ctx.strokeStyle = "#4da3ff"; ctx.strokeRect(0, GOAL_TOP, 12, GOAL_BOT - GOAL_TOP);
       ctx.fillStyle = "rgba(255,90,110,0.16)"; ctx.fillRect(W - 12, GOAL_TOP, 12, GOAL_BOT - GOAL_TOP);
       ctx.strokeStyle = "#ff5a6e"; ctx.strokeRect(W - 12, GOAL_TOP, 12, GOAL_BOT - GOAL_TOP);
+      // Schüsse
       for (const b of this.bullets) { ctx.fillStyle = b.team === 0 ? "#9fd0ff" : "#ffb3bd"; ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI * 2); ctx.fill(); }
-      for (const p of this.players) {
-        if (!p.alive) continue;
-        const col = p.team === 0 ? "#4da3ff" : "#ff5a6e";
-        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle || 0);
-        ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(-9, 8); ctx.lineTo(-9, -8); ctx.closePath(); ctx.fill();
-        if (p.human) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke(); }
-        ctx.restore();
-        if (p.human) { ctx.fillStyle = "#fff"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center"; ctx.fillText("DU", p.x, p.y - 16); ctx.textAlign = "start"; }
-      }
+      // Schiffe
+      for (const p of this.players) { if (p.alive) this._drawShip(ctx, p); }
+      // Ball
       ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(255,255,255,0.85)"; ctx.shadowBlur = 12;
       ctx.beginPath(); ctx.arc(this.ball.x, this.ball.y, 7, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
       ctx.strokeStyle = "#333"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(this.ball.x, this.ball.y, 7, 0, Math.PI * 2); ctx.stroke();
