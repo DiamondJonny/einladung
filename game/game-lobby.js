@@ -49,6 +49,7 @@ import "./doodlejump-game.js";
 import "./2048-game.js";
 import "./minesweeper-game.js";
 import "./asteroids-game.js";
+import "./soccer-game.js";
 // racing-game removed
 import "./quiz-game.js";
 import "./craft-game.js";
@@ -209,6 +210,13 @@ const GAMES = [
         component: "asteroids-game",
         desc: "Shop, Upgrades & Asteroiden zerstören!",
         scoreLabel: null,
+    },
+    {
+        id: "soccer", label: "Weltraum-Fußball", emoji: "⚽",
+        cost: 0,  maxEarn: 0,
+        component: "soccer-game",
+        desc: "2 Teams: hol den Ball ins gegnerische Tor! Du + Bot gegen 2 Bots.",
+        scoreLabel: "Tore",
     },
     {
         id: "quiz", label: "Vokabel-Million\u00e4r",   emoji: "\uD83C\uDFC6",
