@@ -121,17 +121,19 @@ const PACKS = [
 
 // Repeatable upgrades: each level costs more
 const UPGRADE_DEFS = [
-    { id: "thrust", name: "Antrieb", icon: "🔥", basePrice: 12, priceScale: 1.4,
+    { id: "thrust", name: "Antrieb", icon: "🔥", basePrice: 6, priceScale: 1.25, maxLevel: 12,
       desc: lvl => `Level ${lvl} → ${lvl+1}`, apply: (e, lvl) => { e.thrustPower = 200 + lvl * 40; } },
-    { id: "lives", name: "Extra-Leben", icon: "❤️", basePrice: 20, priceScale: 1.6,
+    { id: "lives", name: "Extra-Leben", icon: "❤️", basePrice: 10, priceScale: 1.3, maxLevel: 10,
       desc: lvl => `${3+lvl} → ${4+lvl} Leben`, apply: (e, lvl) => { e.lives = 3 + lvl; } },
-    { id: "firerate", name: "Feuerrate", icon: "💨", basePrice: 15, priceScale: 1.5,
+    { id: "firerate", name: "Feuerrate", icon: "💨", basePrice: 7, priceScale: 1.3, maxLevel: 12,
       desc: lvl => `Level ${lvl} → ${lvl+1}`, apply: (e, lvl) => { e.fireCooldown = Math.max(0.04, e.fireCooldown - lvl * 0.02); } },
-    { id: "double", name: "Doppelschuss", icon: "🔫🔫", basePrice: 50, priceScale: 1.6, maxLevel: 8,
+    { id: "double", name: "Doppelschuss", icon: "🔫🔫", basePrice: 22, priceScale: 1.4, maxLevel: 10,
       desc: lvl => lvl < 1 ? "Zwei Schüsse — beim UFO: Strahlen 4 → 5" : `UFO-Strahlen: ${4+lvl} → ${5+lvl}`,
       apply: (e, lvl) => { e.doubleShot = lvl >= 1; e.doubleLevel = lvl; } },
     { id: "rainbow_bullets", name: "Regenbogen-Schüsse", icon: "🌈", basePrice: 20, priceScale: 0, maxLevel: 1,
       desc: () => "Bunte Kugeln!", apply: (e) => { e.rainbowBullets = true; } },
+    { id: "drones", name: "Begleit-Bots", icon: "🤖", basePrice: 18, priceScale: 1.5, maxLevel: 5,
+      desc: lvl => `${lvl} → ${lvl+1} Bots (fliegen mit & schießen auf Brocken)`, apply: (e, lvl) => { e.droneCount = lvl; } },
 ];
 
 // Mehrere Konten pro iPad: alle Daten werden pro aktivem Konto getrennt gespeichert.
@@ -212,7 +214,7 @@ function applyPerk(e, p) {
 function getEffects(shop) {
     const vip = isVip();
     const mult = vip ? 2 : 1;   // doppelt so viel pro gekauftem Upgrade
-    const e = { bulletSpeed: 300, thrustPower: 200, lives: 3, fireCooldown: vip ? 0.07 : 0.18, doubleShot: false, doubleLevel: 0, rainbowBullets: false, extraBeams: 0, coinMult: 1, startShield: 0 };
+    const e = { bulletSpeed: 300, thrustPower: 200, lives: 3, fireCooldown: vip ? 0.07 : 0.18, doubleShot: false, doubleLevel: 0, rainbowBullets: false, extraBeams: 0, coinMult: 1, startShield: 0, droneCount: 0 };
     for (const def of UPGRADE_DEFS) {
         const lvl = shop.upgradeLevels[def.id] || 0;
         if (lvl > 0) def.apply(e, lvl * mult);
@@ -794,7 +796,9 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
         // Features (Spezial-Fähigkeiten aus Packs)
         const ownedFeats = this._shop.ownedFeatures || [];
         // Begleit-Drohnen (passiv): fliegen mit und schießen für dich
-        const drones = ownedFeats.includes("drones") ? [{ ang: 0, cd: 0, x: null, y: null }, { ang: Math.PI, cd: 0.45, x: null, y: null }] : [];
+        const droneCount = Math.min(6, (fx.droneCount || 0) + (ownedFeats.includes("drones") ? 2 : 0));
+        const drones = [];
+        for (let di = 0; di < droneCount; di++) drones.push({ ang: (di / Math.max(1, droneCount)) * Math.PI * 2, cd: (di * 0.3) % 1, x: null, y: null });
 
         // Böse Gegner überall – Stärke aus Map-Level + eigenem Schiff; höheres Level = mehr Geld
         const battle = true;
