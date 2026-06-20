@@ -1,3 +1,20 @@
+let _ac=null;
+function _audioCtx(){ if(!_ac){ try{ _ac=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return _ac; }
+function sfx(type){
+  const ac=_audioCtx(); if(!ac) return;
+  if(ac.state==="suspended"){ try{ ac.resume(); }catch(e){} }
+  const now=ac.currentTime;
+  const tone=(fr,dur,wave,vol,toF)=>{ const o=ac.createOscillator(),g=ac.createGain(); o.type=wave||"square"; o.frequency.setValueAtTime(fr,now); if(toF) o.frequency.exponentialRampToValueAtTime(toF,now+dur); g.gain.setValueAtTime(0.0001,now); g.gain.linearRampToValueAtTime(vol,now+0.005); g.gain.exponentialRampToValueAtTime(0.0001,now+dur); o.connect(g).connect(ac.destination); o.start(now); o.stop(now+dur+0.03); };
+  const noise=(dur,vol)=>{ const n=Math.floor(ac.sampleRate*dur); const buf=ac.createBuffer(1,n,ac.sampleRate); const d=buf.getChannelData(0); for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n); const sc=ac.createBufferSource(); sc.buffer=buf; const g=ac.createGain(); g.gain.value=vol; sc.connect(g).connect(ac.destination); sc.start(now); };
+  switch(type){
+    case "shoot": tone(1500,0.08,"square",0.05,520); tone(820,0.07,"sawtooth",0.04,300); noise(0.05,0.03); break;
+    case "hit": tone(360,0.10,"square",0.05,130); noise(0.10,0.05); break;
+    case "explode": tone(200,0.28,"sawtooth",0.07,55); noise(0.30,0.10); break;
+    case "enemy": tone(520,0.09,"square",0.05,200); noise(0.05,0.04); break;
+    case "hurt": tone(150,0.28,"sawtooth",0.09,65); noise(0.16,0.07); break;
+    case "wave": [523,659,784,1047].forEach((fr,i)=>setTimeout(()=>tone(fr,0.14,"square",0.05),i*70)); break;
+  }
+}
 // game/asteroids-game.js
 // Weltraum Pilot: Infinite-universe asteroids with shop, upgrades & custom ships.
 
@@ -662,7 +679,7 @@ class AsteroidsGame extends HTMLElement {
 .top-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
   color: #e0e0e0; border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
 .coins-d { color: #ffd700; font-weight: 700; font-size: 0.95rem; }
-canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
+canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
   border: 2px solid rgba(0,255,255,0.2); border-radius: 10px; box-shadow: 0 0 20px rgba(0,255,255,0.08); }
 #mc { display: none; margin-top: 0.4rem; gap: 0.5rem; }
 @media (pointer: coarse) { #mc { display: flex; } }
@@ -679,7 +696,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
   <div class="coins-d">💰 <span id="cd">${this._coins}</span></div>
   <button class="top-btn" id="quit">✕</button>
 </div>
-<canvas id="c" width="560" height="560"></canvas>
+<canvas id="c" width="720" height="720"></canvas>
 <div id="mc">
   <button class="cb" id="bl">↺</button>
   <button class="cb" id="bt">🔥</button>
@@ -745,6 +762,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
             const count = Math.min(10 + Math.floor(totalKills / 3), 20);
             for (let i = 0; i < count; i++) spawnAsteroid(3);
             wave++;
+            if (wave > 2) sfx("wave");
         };
         spawnWave();
 
@@ -862,6 +880,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
             fireCooldown -= dt;
             if (keys.fire && fireCooldown <= 0) {
                 fireCooldown = fx.fireCooldown;
+                sfx("shoot"); shake = Math.max(shake, 2.5);
                 const cos = Math.cos(ship.angle), sin = Math.sin(ship.angle);
                 const bvx = cos * fx.bulletSpeed + ship.vx * 0.3;
                 const bvy = sin * fx.bulletSpeed + ship.vy * 0.3;
@@ -898,7 +917,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                         this._coins += Math.round(fx.coinMult || 1); setCoins(this._coins); coinEl.textContent = this._coins;
                         totalKills++;
                         spawnParticles(a.x, a.y, 6);
-                        shake = Math.max(shake, 4);
+                        shake = Math.max(shake, 4); sfx("hit");
                         // Zwei neue Brocken spawnen – irgendwo, aber NICHT auf dem Spieler
                         if (asteroids.length < 16) {
                             for (let q = 0; q < 2; q++) {
@@ -922,7 +941,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
             if (invincible <= 0) {
                 for (const a of asteroids) {
                     if (Math.hypot(ship.x-a.x, ship.y-a.y) < a.r + 10) {
-                        lives--; spawnParticles(ship.x, ship.y, 12); shake = 11;
+                        lives--; spawnParticles(ship.x, ship.y, 12); shake = 11; sfx("hurt");
                         if (lives <= 0) { alive = false; endGame(); return; }
                         invincible = 2; ship.vx = 0; ship.vy = 0;
                         break;
@@ -968,8 +987,8 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                     for (let j = enemies.length - 1; j >= 0; j--) {
                         const en = enemies[j];
                         if (Math.hypot(b.x - en.x, b.y - en.y) < 14) {
-                            bullets.splice(i, 1); en.hp--; spawnParticles(en.x, en.y, 5);
-                            if (en.hp <= 0) { enemies.splice(j, 1); this._coins += enemyReward; setCoins(this._coins); coinEl.textContent = this._coins; score += 50; totalKills++; shake = Math.max(shake, 6); }
+                            bullets.splice(i, 1); en.hp--; spawnParticles(en.x, en.y, 5); sfx("enemy");
+                            if (en.hp <= 0) { enemies.splice(j, 1); this._coins += enemyReward; setCoins(this._coins); coinEl.textContent = this._coins; score += 50; totalKills++; shake = Math.max(shake, 6); sfx("explode"); }
                             break;
                         }
                     }
@@ -979,7 +998,7 @@ canvas { display: block; max-height: 80vh; max-width: 95vw; touch-action: none;
                     eb.x += eb.vx * dt; eb.y += eb.vy * dt; eb.life -= dt;
                     if (eb.life <= 0) { enemyBullets.splice(i, 1); continue; }
                     if (invincible <= 0 && Math.hypot(eb.x - ship.x, eb.y - ship.y) < 13) {
-                        enemyBullets.splice(i, 1); lives--; spawnParticles(ship.x, ship.y, 12); shake = 11;
+                        enemyBullets.splice(i, 1); lives--; spawnParticles(ship.x, ship.y, 12); shake = 11; sfx("hurt");
                         if (lives <= 0) { alive = false; endGame(); return; }
                         invincible = 2; ship.vx = 0; ship.vy = 0;
                     }
