@@ -11,7 +11,7 @@ import { SHIPS, PILOTS } from "./asteroids-game.js";
 (function () {
   const W = 640, H = 420;
   const GOAL_TOP = 135, GOAL_BOT = 285;
-  const WIN = 3;
+  const WIN = 2;  // kuerzere Spiele: erstes Team mit 2 Toren gewinnt
 
   let _ac = null;
   function sfx(type) {
