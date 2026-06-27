@@ -141,6 +141,36 @@ const UPGRADE_DEFS = [
 
 // Mehrere Konten pro iPad: alle Daten werden pro aktivem Konto getrennt gespeichert.
 function acct() { return localStorage.getItem("activeAccount") || "default"; }
+
+// ── Mehrsprachigkeit (nutzt dieselbe Einstellung wie die Einladung; Standard Englisch) ──
+function lang() { return localStorage.getItem("lang") || "en"; }
+const GT = {
+  en: {
+    back: "Back", play: "▶ Play", playHint: "You earn coins by playing 💰",
+    setup: "📊 Your setup", lifes: "Lives", thrust: "Thrust", firerate: "Fire rate", dbl: "Double",
+    t_play: "▶ Play", t_ships: "🚀 Ships", t_pilots: "🧑‍🚀 Pilots", t_maps: "🗺️ Maps", t_upgrades: "⬆️ Upgrades", t_packs: "📦 Packs", t_records: "🏆 Achievements",
+    shipsHdr: "🚀 Ships", buildShip: "🎨 Build your own ship", hull: "Hull", accent: "Accent", flame: "Flame", saveSelect: "Save & select",
+    pilotsHdr: "🧑‍🚀 Pilots (sit in the ship)", mapsHdr: "🗺️ Maps (level & background)", upgradesHdr: "⬆️ Upgrades",
+    packsHdr: "📦 Open packs", recordsHdr: "🏆 Records", achHdr: "🎖️ Achievements",
+    recScore: "Highscore", recKills: "Most kills", recWave: "Highest wave", recGames: "Games",
+    gratis: "Free", nurPack: "🌟 pack only", aktiv: "ACTIVE", maxR: "✓ Max", ufoNeeded: "🛸 needed", ufoOnly: "Only with an equipped UFO 🛸",
+    drewShip: "🎉 Ship pulled:", drewFeat: "⚡ Feature pulled:", drewFeatHint: "(use it in-game with the button)", drewPilot: "🧑‍🚀 Pilot pulled:",
+    jackpot: "🎰 JACKPOT! +%n coins! 🤑", coinsReward: "💰 No new item this time – but +%n coins!",
+  },
+  de: {
+    back: "Zurück", play: "▶ Spielen", playHint: "Münzen verdienst du beim Spielen 💰",
+    setup: "📊 Dein Setup", lifes: "Leben", thrust: "Antrieb", firerate: "Feuerrate", dbl: "Doppel",
+    t_play: "▶ Spielen", t_ships: "🚀 Schiffe", t_pilots: "🧑‍🚀 Piloten", t_maps: "🗺️ Maps", t_upgrades: "⬆️ Upgrades", t_packs: "📦 Packs", t_records: "🏆 Erfolge",
+    shipsHdr: "🚀 Raumschiffe", buildShip: "🎨 Eigenes Schiff bauen", hull: "Rumpf", accent: "Akzent", flame: "Flamme", saveSelect: "Speichern & Auswählen",
+    pilotsHdr: "🧑‍🚀 Piloten (sitzen im Raumschiff)", mapsHdr: "🗺️ Maps (Level & Hintergrund)", upgradesHdr: "⬆️ Upgrades",
+    packsHdr: "📦 Packs ziehen", recordsHdr: "🏆 Rekorde", achHdr: "🎖️ Erfolge",
+    recScore: "Highscore", recKills: "Meiste Abschüsse", recWave: "Höchste Welle", recGames: "Spiele",
+    gratis: "Gratis", nurPack: "🌟 nur Pack", aktiv: "AKTIV", maxR: "✓ Max", ufoNeeded: "🛸 nötig", ufoOnly: "Nur mit ausgerüstetem UFO 🛸",
+    drewShip: "🎉 Schiff gezogen:", drewFeat: "⚡ Feature gezogen:", drewFeatHint: "(im Spiel per Knopf nutzen)", drewPilot: "🧑‍🚀 Pilot gezogen:",
+    jackpot: "🎰 JACKPOT! +%n Taler! 🤑", coinsReward: "💰 Diesmal kein neues Teil – dafür +%n Münzen!",
+  },
+};
+function gt(k) { const L = GT[lang()] || GT.en; return L[k] != null ? L[k] : (GT.en[k] != null ? GT.en[k] : k); }
 function loadShop() { try { return JSON.parse(localStorage.getItem("asteroidsShop__" + acct()) || "null"); } catch { return null; } }
 function defaultShop() { return { ownedShips: ["default"], upgradeLevels: {}, equipped: "default", customShip: null, ownedMaps: ["classic"], equippedMap: "classic", ownedFeatures: [], ownedPilots: ["astro"], equippedPilot: "astro" }; }
 function saveShop(d) { localStorage.setItem("asteroidsShop__" + acct(), JSON.stringify(d)); }
@@ -351,42 +381,42 @@ class AsteroidsGame extends HTMLElement {
         const tab = this._tab || "play";
         const recs = getRecords();
         const TABS = [
-            { id: "play", label: "▶ Spielen" }, { id: "ships", label: "🚀 Schiffe" },
-            { id: "pilots", label: "🧑‍🚀 Piloten" }, { id: "maps", label: "🗺️ Maps" },
-            { id: "upgrades", label: "⬆️ Upgrades" }, { id: "packs", label: "📦 Packs" },
-            { id: "records", label: "🏆 Erfolge" },
+            { id: "play", label: gt("t_play") }, { id: "ships", label: gt("t_ships") },
+            { id: "pilots", label: gt("t_pilots") }, { id: "maps", label: gt("t_maps") },
+            { id: "upgrades", label: gt("t_upgrades") }, { id: "packs", label: gt("t_packs") },
+            { id: "records", label: gt("t_records") },
         ];
         let content = "";
         if (tab === "play") {
-            content = `<button class="play-btn" id="play">▶ Spielen</button>
-              <div class="play-cost">Münzen verdienst du beim Spielen 💰</div>
-              <div class="section">📊 Dein Setup</div>
+            content = `<button class="play-btn" id="play">${gt("play")}</button>
+              <div class="play-cost">${gt("playHint")}</div>
+              <div class="section">${gt("setup")}</div>
               <div class="stats-row">
-                <div class="chip">Leben: <span>${effects.lives}</span></div>
-                <div class="chip">Antrieb: <span>${effects.thrustPower}</span></div>
-                <div class="chip">Feuerrate: <span>${Math.round(1/effects.fireCooldown)}/s</span></div>
-                <div class="chip">Doppel: <span>${effects.doubleShot?"Ja":"Nein"}</span></div>
+                <div class="chip">${gt("lifes")}: <span>${effects.lives}</span></div>
+                <div class="chip">${gt("thrust")}: <span>${effects.thrustPower}</span></div>
+                <div class="chip">${gt("firerate")}: <span>${Math.round(1/effects.fireCooldown)}/s</span></div>
+                <div class="chip">${gt("dbl")}: <span>${effects.doubleShot?"✓":"–"}</span></div>
               </div>`;
         } else if (tab === "ships") {
-            content = `<div class="section">🚀 Raumschiffe</div><div class="grid" id="ship-grid"></div>
-              <div class="section">🎨 Eigenes Schiff bauen</div>
+            content = `<div class="section">${gt("shipsHdr")}</div><div class="grid" id="ship-grid"></div>
+              <div class="section">${gt("buildShip")}</div>
               <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
                 <div style="display:flex;flex-direction:column;gap:6px">
-                  <div class="custom-row"><span class="color-label">Rumpf</span><input type="color" class="color-pick" id="c-hull" value="${custom.hull === 'rainbow' ? '#4dd0e1' : custom.hull}"></div>
-                  <div class="custom-row"><span class="color-label">Akzent</span><input type="color" class="color-pick" id="c-accent" value="${custom.accent}"></div>
-                  <div class="custom-row"><span class="color-label">Flamme</span><input type="color" class="color-pick" id="c-flame" value="${custom.flame === 'rainbow' ? '#FF6D00' : custom.flame}"></div>
+                  <div class="custom-row"><span class="color-label">${gt("hull")}</span><input type="color" class="color-pick" id="c-hull" value="${custom.hull === 'rainbow' ? '#4dd0e1' : custom.hull}"></div>
+                  <div class="custom-row"><span class="color-label">${gt("accent")}</span><input type="color" class="color-pick" id="c-accent" value="${custom.accent}"></div>
+                  <div class="custom-row"><span class="color-label">${gt("flame")}</span><input type="color" class="color-pick" id="c-flame" value="${custom.flame === 'rainbow' ? '#FF6D00' : custom.flame}"></div>
                 </div>
                 <canvas class="custom-preview" id="c-preview" width="64" height="64"></canvas>
-                <button class="custom-save" id="c-save">Speichern & Auswählen</button>
+                <button class="custom-save" id="c-save">${gt("saveSelect")}</button>
               </div>`;
         } else if (tab === "pilots") {
-            content = `<div class="section">🧑‍🚀 Piloten (sitzen im Raumschiff)</div><div class="grid" id="pilot-grid"></div>`;
+            content = `<div class="section">${gt("pilotsHdr")}</div><div class="grid" id="pilot-grid"></div>`;
         } else if (tab === "maps") {
-            content = `<div class="section">🗺️ Maps (Level & Hintergrund)</div><div class="grid" id="map-grid"></div>`;
+            content = `<div class="section">${gt("mapsHdr")}</div><div class="grid" id="map-grid"></div>`;
         } else if (tab === "upgrades") {
-            content = `<div class="section">⬆️ Upgrades</div><div class="ulist" id="upgrade-list"></div>`;
+            content = `<div class="section">${gt("upgradesHdr")}</div><div class="ulist" id="upgrade-list"></div>`;
         } else if (tab === "packs") {
-            content = `<div class="section">📦 Packs ziehen</div>
+            content = `<div class="section">${gt("packsHdr")}</div>
               ${this._packReveal ? `<div style="background:rgba(0,230,118,0.15);border:1px solid #00e676;border-radius:10px;padding:8px 12px;margin-bottom:8px;color:#b9f6ca;font-weight:700">${this._packReveal}</div>` : ""}
               ${PACKS.map(p => `<button class="play-btn pack-btn" data-pack="${p.id}" ${coins >= p.cost ? "" : "disabled"} style="background:linear-gradient(135deg,#ff9800,#e91e63);margin-bottom:6px">${p.name} — ${p.cost} 💰<br><small style="font-weight:400;opacity:.85">${p.desc}</small></button>`).join("")}`;
         } else if (tab === "records") {
@@ -400,14 +430,14 @@ class AsteroidsGame extends HTMLElement {
                 { ok: (recs.bestKills || 0) >= 50, t: "💥 50 Abschüsse in einer Runde" },
                 { ok: (recs.bestScore || 0) >= 500, t: "⭐ Highscore 500+" },
             ];
-            content = `<div class="section">🏆 Rekorde</div>
+            content = `<div class="section">${gt("recordsHdr")}</div>
               <div class="stats-row">
-                <div class="chip">Highscore: <span>${recs.bestScore || 0}</span></div>
-                <div class="chip">Meiste Abschüsse: <span>${recs.bestKills || 0}</span></div>
-                <div class="chip">Höchste Welle: <span>${recs.bestWave || 0}</span></div>
-                <div class="chip">Spiele: <span>${recs.games || 0}</span></div>
+                <div class="chip">${gt("recScore")}: <span>${recs.bestScore || 0}</span></div>
+                <div class="chip">${gt("recKills")}: <span>${recs.bestKills || 0}</span></div>
+                <div class="chip">${gt("recWave")}: <span>${recs.bestWave || 0}</span></div>
+                <div class="chip">${gt("recGames")}: <span>${recs.games || 0}</span></div>
               </div>
-              <div class="section">🎖️ Erfolge (${ach.filter(a => a.ok).length}/${ach.length})</div>
+              <div class="section">${gt("achHdr")} (${ach.filter(a => a.ok).length}/${ach.length})</div>
               <div class="ulist">${ach.map(a => `<div class="ucard ${a.ok ? "" : "locked"}"><div class="uicon">${a.ok ? "✅" : "🔒"}</div><div class="uinfo"><div class="uname">${a.t}</div></div></div>`).join("")}</div>`;
         }
 
@@ -416,7 +446,8 @@ class AsteroidsGame extends HTMLElement {
         <div class="header">
           <span class="title">☄️ Weltraum Pilot</span>
           <div class="coins-badge">💰 ${coins}</div>
-          <button class="btn-sm" id="close">Zurück</button>
+          <button class="btn-sm" id="langtoggle">${lang() === "de" ? "🇬🇧 EN" : "🇩🇪 DE"}</button>
+          <button class="btn-sm" id="close">${gt("back")}</button>
         </div>
         <div class="tabbar">${TABS.map(tb => `<button class="tab${tb.id === tab ? " on" : ""}" data-tab="${tb.id}">${tb.label}</button>`).join("")}</div>
         <div class="body">${content}</div>
@@ -425,6 +456,7 @@ class AsteroidsGame extends HTMLElement {
 
         const sr = this.shadowRoot;
         sr.getElementById("close").onclick = () => this.dispatchEvent(new CustomEvent("close-game", { bubbles: true }));
+        sr.getElementById("langtoggle").onclick = () => { localStorage.setItem("lang", lang() === "de" ? "en" : "de"); this._showShop(); };
         sr.querySelectorAll(".tab").forEach(b => { b.onclick = () => { this._tab = b.dataset.tab; this._showShop(); }; });
         const playBtn = sr.getElementById("play"); if (playBtn) playBtn.onclick = () => this._startGame();
 
@@ -446,8 +478,8 @@ class AsteroidsGame extends HTMLElement {
             const nm = document.createElement("div"); nm.className = "card-name"; nm.textContent = s.name; card.appendChild(nm);
             if (PERKS[s.id]) { const pk = document.createElement("div"); pk.className = "card-perk"; pk.textContent = "✨ " + PERKS[s.id].desc; card.appendChild(pk); }
             const pr = document.createElement("div"); pr.className = "card-price" + (owned ? " owned" : "");
-            pr.textContent = owned ? "✓" : (s.packOnly ? "🌟 nur Pack" : `💰 ${s.price}`); card.appendChild(pr);
-            if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = "AKTIV"; card.appendChild(b); }
+            pr.textContent = owned ? "✓" : (s.packOnly ? gt("nurPack") : `💰 ${s.price}`); card.appendChild(pr);
+            if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = gt("aktiv"); card.appendChild(b); }
             card.onclick = () => {
                 if (owned && !active) { shop.equipped = s.id; saveShop(shop); this._showShop(); }
                 else if (!owned && !s.packOnly && coins >= s.price) {
@@ -494,9 +526,9 @@ class AsteroidsGame extends HTMLElement {
               <div class="uicon">${def.icon}</div>
               <div class="uinfo">
                 <div class="uname">${def.name} ${maxed ? "" : "(Lv " + lvl + ")"}</div>
-                <div class="udesc">${maxed ? "Max erreicht!" : (ufoGate ? "Nur mit ausgerüstetem UFO 🛸" : def.desc(lvl))}</div>
+                <div class="udesc">${maxed ? gt("maxR") : (ufoGate ? gt("ufoOnly") : def.desc(lvl))}</div>
               </div>
-              <div class="uprice ${maxed?"maxed":""}">${maxed ? "✓ Max" : (ufoGate ? "🛸 nötig" : "💰 " + price)}</div>`;
+              <div class="uprice ${maxed?"maxed":""}">${maxed ? gt("maxR") : (ufoGate ? gt("ufoNeeded") : "💰 " + price)}</div>`;
             if (!maxed && !ufoGate && canBuy) {
                 card.onclick = () => {
                     this._coins -= price; setCoins(this._coins);
@@ -522,7 +554,7 @@ class AsteroidsGame extends HTMLElement {
             const nm = document.createElement("div"); nm.className = "card-name"; nm.textContent = p.name; card.appendChild(nm);
             const pr = document.createElement("div"); pr.className = "card-price" + (owned ? " owned" : "");
             pr.textContent = owned ? "✓" : `💰 ${p.price}`; card.appendChild(pr);
-            if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = "AKTIV"; card.appendChild(b); }
+            if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = gt("aktiv"); card.appendChild(b); }
             card.onclick = () => {
                 if (owned) { shop.equippedPilot = p.id; saveShop(shop); this._showShop(); }
                 else if (coins >= p.price) {
@@ -549,7 +581,7 @@ class AsteroidsGame extends HTMLElement {
             const nm = document.createElement("div"); nm.className = "card-name"; nm.textContent = m.name; card.appendChild(nm);
             const pr = document.createElement("div"); pr.className = "card-price" + (owned ? " owned" : "");
             pr.textContent = owned ? "✓" : `💰 ${m.price}`; card.appendChild(pr);
-            if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = "AKTIV"; card.appendChild(b); }
+            if (active) { const b = document.createElement("div"); b.className = "badge"; b.textContent = gt("aktiv"); card.appendChild(b); }
             card.className = "card" + (active ? " active" : "") + (!owned && coins < m.price ? " locked" : "");
             card.onclick = () => {
                 if (owned) { shop.equippedMap = m.id; saveShop(shop); this._showShop(); }
@@ -579,10 +611,10 @@ class AsteroidsGame extends HTMLElement {
         if (pool.length && Math.random() < 0.82) reward = pool[Math.floor(Math.random() * pool.length)];
         else if (Math.random() < 0.15) reward = { t: "coins", v: 1000, jackpot: true };  // seltener Jackpot
         else reward = { t: "coins", v: Math.round(pack.cost * (0.4 + Math.random() * 0.5)) };
-        if (reward.t === "ship") { shop.ownedShips.push(reward.v.id); shop.equipped = reward.v.id; this._packReveal = `🎉 Schiff gezogen: <b>${reward.v.name}</b>!`; }
-        else if (reward.t === "feature") { shop.ownedFeatures.push(reward.v.id); this._packReveal = `⚡ Feature gezogen: <b>${reward.v.name}</b>! (im Spiel per Knopf nutzen)`; }
-        else if (reward.t === "pilot") { shop.ownedPilots.push(reward.v.id); shop.equippedPilot = reward.v.id; this._packReveal = `🧑‍🚀 Pilot gezogen: <b>${reward.v.name}</b>!`; }
-        else { this._coins += reward.v; setCoins(this._coins); this._packReveal = reward.jackpot ? `🎰 <b>JACKPOT! +${reward.v} Taler!</b> 🤑` : `💰 Diesmal kein neues Teil – dafür <b>+${reward.v} Münzen</b>!`; }
+        if (reward.t === "ship") { shop.ownedShips.push(reward.v.id); shop.equipped = reward.v.id; this._packReveal = `${gt("drewShip")} <b>${reward.v.name}</b>!`; }
+        else if (reward.t === "feature") { shop.ownedFeatures.push(reward.v.id); this._packReveal = `${gt("drewFeat")} <b>${reward.v.name}</b>! ${gt("drewFeatHint")}`; }
+        else if (reward.t === "pilot") { shop.ownedPilots.push(reward.v.id); shop.equippedPilot = reward.v.id; this._packReveal = `${gt("drewPilot")} <b>${reward.v.name}</b>!`; }
+        else { this._coins += reward.v; setCoins(this._coins); this._packReveal = reward.jackpot ? `<b>${gt("jackpot").replace("%n", reward.v)}</b>` : gt("coinsReward").replace("%n", reward.v); }
         saveShop(shop);
         // Greifarm-Automat-Animation, danach Shop mit Gewinn-Anzeige
         const icon = reward.t === "coins" ? (reward.jackpot ? "🎰" : "💰") : reward.t === "feature" ? reward.v.icon : reward.t === "pilot" ? reward.v.emoji : "🚀";
