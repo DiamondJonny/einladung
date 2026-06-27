@@ -200,6 +200,14 @@
   }
   #lobbyBackToInvite:active { transform: scale(.97); }
 
+  /* Sprach-Umschalter */
+  #langbar { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 4px; }
+  #langbar button {
+    background: #fff; border: 2px solid #e4e4f0; border-radius: 999px; padding: 4px 10px;
+    font-size: 13px; font-weight: 700; cursor: pointer; color: #6b6b80;
+  }
+  #langbar button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border-color: transparent; }
+
   /* Empfehlungen für andere Seiten */
   .recommend { margin-top: 22px; border-top: 1px dashed #e1e1ef; padding-top: 16px; }
   .rec-title { font-weight: 800; color: #6b6b80; font-size: 14px; margin-bottom: 10px; }
@@ -228,14 +236,15 @@
   <div class="bg" id="bg"></div>
 
   <div class="card">
+    <div id="langbar"><button data-lang="en">🇬🇧 EN</button><button data-lang="de">🇩🇪 DE</button></div>
     <!-- 1) Namensgate -->
     <div id="gate">
       <div class="emoji">🎂</div>
-      <h2>Geburtstagseinladung</h2>
-      <p class="lead">Gib deinen <strong>Vornamen</strong> ein, um deine Einladung zu sehen.</p>
+      <h2 data-i18n="inviteTitle">Birthday Invitation</h2>
+      <p class="lead" data-i18n="enterName">Enter your <strong>first name</strong> to see your invitation.</p>
       <form id="form" autocomplete="off">
-        <input id="name" type="text" placeholder="Dein Vorname" autocapitalize="off" autocorrect="off" spellcheck="false" />
-        <button id="submit" class="primary" type="submit">Einladung öffnen 🎉</button>
+        <input id="name" type="text" data-i18n-ph="namePlaceholder" placeholder="Your first name" autocapitalize="off" autocorrect="off" spellcheck="false" />
+        <button id="submit" class="primary" type="submit" data-i18n="openInvite">Open invitation 🎉</button>
       </form>
       <div id="msg" class="msg"></div>
     </div>
@@ -246,39 +255,39 @@
     <!-- 3) Spiele-Hub -->
     <div id="gamesHub" style="display:none">
       <div class="emoji">🎮</div>
-      <h2>Geschafft! Jetzt wird gespielt 🥳</h2>
-      <p class="lead">Such dir ein Spiel aus:</p>
+      <h2 data-i18n="gamesTitle">Let's play! 🥳</h2>
+      <p class="lead" data-i18n="chooseGame">Pick a game:</p>
       <div class="games-grid">
         <div class="game-tile" data-game="pop">
-          <div class="ico">🎈</div><div class="t">Luftballons platzen</div><div class="d">So viele wie möglich in 30 Sek.</div>
+          <div class="ico">🎈</div><div class="t" data-i18n="popT">Pop balloons</div><div class="d" data-i18n="popD">As many as you can in 30s</div>
         </div>
         <div class="game-tile" data-game="memory">
-          <div class="ico">🃏</div><div class="t">Memory</div><div class="d">Finde alle Paare</div>
+          <div class="ico">🃏</div><div class="t" data-i18n="memoryT">Memory</div><div class="d" data-i18n="memoryD">Find all pairs</div>
         </div>
         <div class="game-tile" data-game="tennis">
-          <div class="ico">🏓</div><div class="t">Tennis gegen KI</div><div class="d">Erster mit 5 Punkten gewinnt</div>
+          <div class="ico">🏓</div><div class="t" data-i18n="tennisT">Tennis vs AI</div><div class="d" data-i18n="tennisD">First to 5 points wins</div>
         </div>
         <div class="game-tile" data-game="fly">
-          <div class="ico">🚁</div><div class="t">Fliegen</div><div class="d">Tippen & Hindernissen ausweichen</div>
+          <div class="ico">🚁</div><div class="t" data-i18n="flyT">Fly</div><div class="d" data-i18n="flyD">Tap & dodge the obstacles</div>
         </div>
         <div class="game-tile" data-game="space" style="grid-column:1/-1;border-color:#7c5cff;background:#f3efff">
-          <div class="ico">🎮☄️</div><div class="t">Alle Spiele (24+)</div><div class="d">Weltraum Pilot mit UFO, plus Tetris, Snake, Pacman, Vokabel-Quiz & viele mehr – alles gratis!</div>
+          <div class="ico">🎮☄️</div><div class="t" data-i18n="spaceT">All games (24+)</div><div class="d" data-i18n="spaceD">Space Pilot with UFO, plus Tetris, Snake, Pacman, quiz & many more – all free!</div>
         </div>
       </div>
       <div class="actions">
-        <button class="ghost" id="backToInv">← Zur Einladung</button>
-        <button class="ghost" id="switchAccount">👤 Konto wechseln</button>
+        <button class="ghost" id="backToInv" data-i18n="backToInvite">← To the invitation</button>
+        <button class="ghost" id="switchAccount" data-i18n="switchAccount">👤 Switch account</button>
       </div>
       <div id="acctChip" style="margin-top:10px;color:#7a7a90;font-size:14px;font-weight:700"></div>
       <div class="recommend">
-        <div class="rec-title">✨ Schau dir auch meine anderen Seiten an</div>
+        <div class="rec-title" data-i18n="recommend">✨ Check out my other pages</div>
         <a class="rec-card" href="https://bartfastiel.github.io/vocabulary-learning-app/" target="_blank" rel="noopener">
           <span class="rec-ico">📚</span>
-          <span><span class="rec-name">Vokabeln lernen</span><span class="rec-desc">Meine Vokabel-Lern-App</span></span>
+          <span><span class="rec-name" data-i18n="vocabName">Learn vocabulary</span><span class="rec-desc" data-i18n="vocabDesc">My vocabulary learning app</span></span>
         </a>
         <a class="rec-card" href="https://diamondjonny.github.io/geburtstagseinladung/" target="_blank" rel="noopener">
           <span class="rec-ico">🚀</span>
-          <span><span class="rec-name">Das große Spiel</span><span class="rec-desc">3D-Geburtstagseinladung mit Spiel</span></span>
+          <span><span class="rec-name" data-i18n="bigGameName">The big game</span><span class="rec-desc" data-i18n="bigGameDesc">3D birthday invitation with a game</span></span>
         </a>
       </div>
     </div>
@@ -286,7 +295,7 @@
     <!-- Einzelnes Spiel -->
     <div id="gameView" style="display:none">
       <div id="gameInner"></div>
-      <div class="actions"><button class="ghost" id="backToHub">← Zur Spieleauswahl</button></div>
+      <div class="actions"><button class="ghost" id="backToHub" data-i18n="backToGames">← To game selection</button></div>
     </div>
   </div>
 
@@ -338,6 +347,73 @@
   const enc = new TextEncoder();
   const dec = new TextDecoder();
   const $ = (id) => document.getElementById(id);
+
+  // ---- Mehrsprachigkeit (Standard: Englisch) ----
+  const T = {
+    en: {
+      inviteTitle: "Birthday Invitation",
+      enterName: "Enter your <strong>first name</strong> to see your invitation.",
+      namePlaceholder: "Your first name",
+      openInvite: "Open invitation 🎉",
+      gamesTitle: "Let's play! 🥳",
+      chooseGame: "Pick a game:",
+      popT: "Pop balloons", popD: "As many as you can in 30s",
+      memoryT: "Memory", memoryD: "Find all pairs",
+      tennisT: "Tennis vs AI", tennisD: "First to 5 points wins",
+      flyT: "Fly", flyD: "Tap & dodge the obstacles",
+      spaceT: "All games (24+)", spaceD: "Space Pilot with UFO, plus Tetris, Snake, Pacman, quiz & many more – all free!",
+      backToInvite: "← To the invitation", switchAccount: "👤 Switch account",
+      backToGames: "← To game selection",
+      recommend: "✨ Check out my other pages",
+      vocabName: "Learn vocabulary", vocabDesc: "My vocabulary learning app",
+      bigGameName: "The big game", bigGameDesc: "3D birthday invitation with a game",
+      enterNameErr: "Please enter your first name.",
+      wait: "One moment …",
+      oops: "Oops, something went wrong.",
+      toGames: "To the games 🎮",
+      weiterGames: "Continue to the games 🎮",
+      notOnListTitle: "You're not on the guest list",
+      notOnListMsg: "I can't find that name – so there's <strong>no coin bonus</strong>. But you can still play and check out my other pages! 🎮",
+      loggedInAs: "👤 Logged in as: ",
+    },
+    de: {
+      inviteTitle: "Geburtstagseinladung",
+      enterName: "Gib deinen <strong>Vornamen</strong> ein, um deine Einladung zu sehen.",
+      namePlaceholder: "Dein Vorname",
+      openInvite: "Einladung öffnen 🎉",
+      gamesTitle: "Geschafft! Jetzt wird gespielt 🥳",
+      chooseGame: "Such dir ein Spiel aus:",
+      popT: "Luftballons platzen", popD: "So viele wie möglich in 30 Sek.",
+      memoryT: "Memory", memoryD: "Finde alle Paare",
+      tennisT: "Tennis gegen KI", tennisD: "Erster mit 5 Punkten gewinnt",
+      flyT: "Fliegen", flyD: "Tippen & Hindernissen ausweichen",
+      spaceT: "Alle Spiele (24+)", spaceD: "Weltraum Pilot mit UFO, plus Tetris, Snake, Pacman, Quiz & viele mehr – alles gratis!",
+      backToInvite: "← Zur Einladung", switchAccount: "👤 Konto wechseln",
+      backToGames: "← Zur Spieleauswahl",
+      recommend: "✨ Schau dir auch meine anderen Seiten an",
+      vocabName: "Vokabeln lernen", vocabDesc: "Meine Vokabel-Lern-App",
+      bigGameName: "Das große Spiel", bigGameDesc: "3D-Geburtstagseinladung mit Spiel",
+      enterNameErr: "Bitte gib deinen Vornamen ein.",
+      wait: "Einen Moment …",
+      oops: "Hoppla, da ist etwas schiefgelaufen.",
+      toGames: "Zu den Spielen 🎮",
+      weiterGames: "Weiter zu den Spielen 🎮",
+      notOnListTitle: "Du bist nicht auf der Gästeliste",
+      notOnListMsg: "Diesen Namen finde ich leider nicht – deshalb gibt es <strong>keinen Münz-Bonus</strong>. Spielen und meine anderen Seiten anschauen darfst du aber natürlich trotzdem! 🎮",
+      loggedInAs: "👤 Eingeloggt als: ",
+    },
+  };
+  let lang = localStorage.getItem('lang') || 'en';
+  function t(k) { const v = T[lang] && T[lang][k]; return v != null ? v : (T.en[k] != null ? T.en[k] : k); }
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.title = '🎉 ' + t('inviteTitle');
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+    document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
+    document.querySelectorAll('#langbar button').forEach((b) => b.classList.toggle('on', b.dataset.lang === lang));
+  }
+  document.querySelectorAll('#langbar button').forEach((b) => b.addEventListener('click', () => { lang = b.dataset.lang; localStorage.setItem('lang', lang); applyLang(); }));
+  applyLang();
 
   // Begrüßungs-Konfetti, wenn man per QR-Code kommt (?qr=1)
   if (/[?&]qr=1\b/.test(location.search) || location.hash === '#willkommen') {
@@ -402,7 +478,7 @@
   function show(id) {
     ['gate','result','gamesHub','gameView'].forEach((x) => $(x).style.display = 'none');
     $(id).style.display = 'block';
-    if (id === 'gamesHub' && $('acctChip')) $('acctChip').textContent = '👤 Eingeloggt als: ' + currentAccountName();
+    if (id === 'gamesHub' && $('acctChip')) $('acctChip').textContent = t('loggedInAs') + currentAccountName();
   }
 
   // ---- Mehrere Konten pro iPad: jeder Name = eigenes Konto, Daten pro Konto getrennt ----
@@ -454,7 +530,7 @@
   // Einladung -> Knopf zu den Spielen
   function renderInvitation(html) {
     $('result').innerHTML = html +
-      '<div class="actions"><button class="primary" id="toGames">Weiter zu den Spielen 🎮</button></div>';
+      '<div class="actions"><button class="primary" id="toGames">' + t('weiterGames') + '</button></div>';
     show('result');
     confettiBurst();
     $('toGames').addEventListener('click', () => show('gamesHub'));
@@ -469,10 +545,10 @@
     const input = normalize($('name').value);
     const msg = $('msg');
     msg.className = 'msg'; msg.textContent = '';
-    if (!input) { msg.className = 'msg err'; msg.textContent = 'Bitte gib deinen Vornamen ein.'; return; }
+    if (!input) { msg.className = 'msg err'; msg.textContent = t('enterNameErr'); return; }
 
     submitBtn.disabled = true;
-    msg.textContent = 'Einen Moment …';
+    msg.textContent = t('wait');
     // VIP: das Geburtstagskind "Jonathan" (auch "Jonathan Schwarz") bekommt im Raketenspiel Sonderrechte
     const vip = input.includes('jonathan');
     let match = findMatch(input);
@@ -484,10 +560,9 @@
       // Nicht auf der Gästeliste: kein Bonus, aber Spielen & Stöbern ist trotzdem erlaubt.
       $('result').innerHTML =
         '<div class="emoji">🎈</div>' +
-        '<h2>Du bist nicht auf der Gästeliste</h2>' +
-        '<p class="lead">Diesen Namen finde ich leider nicht – deshalb gibt es <strong>keinen Münz-Bonus</strong>. ' +
-        'Spielen und meine anderen Seiten anschauen darfst du aber natürlich trotzdem! 🎮</p>' +
-        '<div class="actions"><button class="primary" id="toGames">Zu den Spielen 🎮</button></div>';
+        '<h2>' + t('notOnListTitle') + '</h2>' +
+        '<p class="lead">' + t('notOnListMsg') + '</p>' +
+        '<div class="actions"><button class="primary" id="toGames">' + t('toGames') + '</button></div>';
       show('result');
       $('toGames').addEventListener('click', () => show('gamesHub'));
       submitBtn.disabled = false;
@@ -498,7 +573,7 @@
       grantInviteBonusOnce();   // nur für Eingeladene
       renderInvitation(html);
     } catch (e) {
-      msg.className = 'msg err'; msg.textContent = 'Hoppla, da ist etwas schiefgelaufen.';
+      msg.className = 'msg err'; msg.textContent = t('oops');
       submitBtn.disabled = false;
     }
   });
