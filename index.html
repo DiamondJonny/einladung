@@ -474,8 +474,10 @@
       { name: 'AES-GCM', iv: b64ToBytes(match.entry.iv) }, kek, b64ToBytes(match.entry.ct)
     );
     const masterKey = await crypto.subtle.importKey('raw', masterRaw, { name: 'AES-GCM' }, false, ['decrypt']);
+    // Einladung in der aktuellen Sprache (Fallback: en -> de -> erste vorhandene)
+    const invEnc = data.inv[lang] || data.inv.en || data.inv.de || data.inv[Object.keys(data.inv)[0]];
     const invBytes = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: b64ToBytes(data.inv.iv) }, masterKey, b64ToBytes(data.inv.ct)
+      { name: 'AES-GCM', iv: b64ToBytes(invEnc.iv) }, masterKey, b64ToBytes(invEnc.ct)
     );
     return dec.decode(invBytes);
   }
