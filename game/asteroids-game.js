@@ -88,6 +88,9 @@ const FEATURES = [
     { id: "teleport", name: "Teleport ✨", icon: "✨", cooldown: 4,  desc: "Springt ein Stück nach vorne (Ausweichen)" },
     { id: "shield",   name: "Schild 🛡️", icon: "🛡️", cooldown: 12, desc: "3 Sek. unverwundbar" },
     { id: "bomb",     name: "Bombe 💥",   icon: "💥", cooldown: 16, desc: "Zerstört Brocken in der Nähe" },
+    { id: "freeze",   name: "Zeitstopp ❄️", icon: "❄️", cooldown: 18, desc: "Friert Brocken & Gegner 3s ein" },
+    { id: "rapid",    name: "Schnellfeuer ⚡", icon: "⚡", cooldown: 14, desc: "4s extrem schnelles Feuer" },
+    { id: "heal",     name: "Reparatur ❤️", icon: "❤️", cooldown: 25, desc: "+1 Leben" },
     { id: "drones",   name: "Begleit-Drohnen 🤖", icon: "🤖", cooldown: 0, passive: true, desc: "2 Bots fliegen mit und schießen für dich" },
 ];
 
@@ -730,7 +733,7 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
         let bullets = [], asteroids = [], particles = [];
         let keys = { left: false, right: false, up: false, fire: false };
         let fireCooldown = 0, score = 0, alive = true, wave = 1;
-        let lives = fx.lives, invincible = fx.startShield || 0, totalKills = 0, shake = 0;
+        let lives = fx.lives, invincible = fx.startShield || 0, totalKills = 0, shake = 0, freezeT = 0, rapidT = 0;
         let bulletHue = 0, raf;
 
         // Generate star field (fixed positions spread over a large area, tiled)
@@ -828,6 +831,9 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
                 if (hit) { this._coins += hit; setCoins(this._coins); coinEl.textContent = this._coins; }
                 shake = 14;
             } else if (id === "teleport") { shake = Math.max(shake, 5); }
+            else if (id === "freeze") { freezeT = 3; spawnParticles(ship.x, ship.y, 16); }
+            else if (id === "rapid") { rapidT = 4; }
+            else if (id === "heal") { lives++; spawnParticles(ship.x, ship.y, 14); }
         };
         ownedFeats.forEach(id => {
             cooldowns[id] = 0;
@@ -846,6 +852,8 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
         const update = (dt) => {
             invincible -= dt;
             if (shake > 0) shake = Math.max(0, shake - dt * 55);
+            if (freezeT > 0) freezeT -= dt;
+            if (rapidT > 0) rapidT -= dt;
             // Feature-Cooldowns
             for (const id in cooldowns) {
                 if (cooldowns[id] > 0) {
@@ -885,7 +893,7 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
             // Fire
             fireCooldown -= dt;
             if (keys.fire && fireCooldown <= 0) {
-                fireCooldown = fx.fireCooldown;
+                fireCooldown = rapidT > 0 ? 0.05 : fx.fireCooldown;
                 sfx("shoot"); shake = Math.max(shake, 2.5);
                 const cos = Math.cos(ship.angle), sin = Math.sin(ship.angle);
                 const bvx = cos * fx.bulletSpeed + ship.vx * 0.3;
@@ -937,8 +945,8 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
                 }
             }
 
-            // Asteroid movement (no wrapping - infinite world)
-            for (const a of asteroids) { a.x += a.vx * dt; a.y += a.vy * dt; }
+            // Asteroid movement (no wrapping - infinite world) – eingefroren bei Zeitstopp
+            if (freezeT <= 0) for (const a of asteroids) { a.x += a.vx * dt; a.y += a.vy * dt; }
 
             // Remove asteroids too far away (> 800 from ship)
             asteroids = asteroids.filter(a => Math.hypot(a.x-ship.x, a.y-ship.y) < 800);
@@ -975,12 +983,14 @@ canvas { display: block; max-height: 92vh; max-width: 98vw; touch-action: none;
                 const espeed = 30 + enemyLevel * 9;
                 for (const en of enemies) {
                     const a = Math.atan2(ship.y - en.y, ship.x - en.x);
-                    en.x += Math.cos(a) * espeed * dt; en.y += Math.sin(a) * espeed * dt;
-                    en.cd -= dt;
-                    if (en.cd <= 0) {
-                        const bs = 200 + enemyLevel * 15;
-                        enemyBullets.push({ x: en.x, y: en.y, vx: Math.cos(a) * bs, vy: Math.sin(a) * bs, life: 3 });
-                        en.cd = Math.max(0.8, 2 - enemyLevel * 0.18);
+                    if (freezeT <= 0) {
+                        en.x += Math.cos(a) * espeed * dt; en.y += Math.sin(a) * espeed * dt;
+                        en.cd -= dt;
+                        if (en.cd <= 0) {
+                            const bs = 200 + enemyLevel * 15;
+                            enemyBullets.push({ x: en.x, y: en.y, vx: Math.cos(a) * bs, vy: Math.sin(a) * bs, life: 3 });
+                            en.cd = Math.max(0.8, 2 - enemyLevel * 0.18);
+                        }
                     }
                     if (invincible <= 0 && Math.hypot(en.x - ship.x, en.y - ship.y) < 18) {
                         lives--; spawnParticles(ship.x, ship.y, 12);
