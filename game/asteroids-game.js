@@ -146,7 +146,7 @@ function acct() { return localStorage.getItem("activeAccount") || "default"; }
 function lang() { return localStorage.getItem("lang") || "en"; }
 const GT = {
   en: {
-    back: "Back", play: "▶ Play", playHint: "You earn coins by playing 💰",
+    back: "Back", play: "▶ Play", soccer: "⚽ Space football", playHint: "You earn coins by playing 💰",
     setup: "📊 Your setup", lifes: "Lives", thrust: "Thrust", firerate: "Fire rate", dbl: "Double",
     t_play: "▶ Play", t_ships: "🚀 Ships", t_pilots: "🧑‍🚀 Pilots", t_maps: "🗺️ Maps", t_upgrades: "⬆️ Upgrades", t_packs: "📦 Packs", t_records: "🏆 Achievements",
     shipsHdr: "🚀 Ships", buildShip: "🎨 Build your own ship", hull: "Hull", accent: "Accent", flame: "Flame", saveSelect: "Save & select",
@@ -158,7 +158,7 @@ const GT = {
     jackpot: "🎰 JACKPOT! +%n coins! 🤑", coinsReward: "💰 No new item this time – but +%n coins!",
   },
   de: {
-    back: "Zurück", play: "▶ Spielen", playHint: "Münzen verdienst du beim Spielen 💰",
+    back: "Zurück", play: "▶ Spielen", soccer: "⚽ Weltraumfußball", playHint: "Münzen verdienst du beim Spielen 💰",
     setup: "📊 Dein Setup", lifes: "Leben", thrust: "Antrieb", firerate: "Feuerrate", dbl: "Doppel",
     t_play: "▶ Spielen", t_ships: "🚀 Schiffe", t_pilots: "🧑‍🚀 Piloten", t_maps: "🗺️ Maps", t_upgrades: "⬆️ Upgrades", t_packs: "📦 Packs", t_records: "🏆 Erfolge",
     shipsHdr: "🚀 Raumschiffe", buildShip: "🎨 Eigenes Schiff bauen", hull: "Rumpf", accent: "Akzent", flame: "Flamme", saveSelect: "Speichern & Auswählen",
@@ -389,6 +389,7 @@ class AsteroidsGame extends HTMLElement {
         let content = "";
         if (tab === "play") {
             content = `<button class="play-btn" id="play">${gt("play")}</button>
+              <button class="play-btn" id="soccerbtn" style="background:linear-gradient(135deg,#43a047,#1b5e20);margin-top:6px">${gt("soccer")}</button>
               <div class="play-cost">${gt("playHint")}</div>
               <div class="section">${gt("setup")}</div>
               <div class="stats-row">
@@ -459,6 +460,7 @@ class AsteroidsGame extends HTMLElement {
         sr.getElementById("langtoggle").onclick = () => { localStorage.setItem("lang", lang() === "de" ? "en" : "de"); this._showShop(); };
         sr.querySelectorAll(".tab").forEach(b => { b.onclick = () => { this._tab = b.dataset.tab; this._showShop(); }; });
         const playBtn = sr.getElementById("play"); if (playBtn) playBtn.onclick = () => this._startGame();
+        const soccerBtn = sr.getElementById("soccerbtn"); if (soccerBtn) soccerBtn.onclick = () => this.dispatchEvent(new CustomEvent("play-game", { bubbles: true, detail: { id: "soccer" } }));
 
         // Ship grid
         const grid = sr.getElementById("ship-grid");
